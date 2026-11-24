@@ -1,0 +1,782 @@
+[
+  {
+    "name": "dhiboen_project_ispu",
+    "url": "https://raw.githubusercontent.com/dhiboen/Project/main/ISPU.csv",
+    "rows": 2285,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori",
+      "pm25"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2020-01-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "30",
+        "so2": "20",
+        "co": "10",
+        "o3": "32",
+        "no2": "9",
+        "max": 32.0,
+        "critical": "O3",
+        "categori": "BAIK",
+        "pm25": NaN
+      },
+      {
+        "tanggal": "2020-01-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "27",
+        "so2": "22",
+        "co": "12",
+        "o3": "29",
+        "no2": "8",
+        "max": 29.0,
+        "critical": "O3",
+        "categori": "BAIK",
+        "pm25": NaN
+      },
+      {
+        "tanggal": "2020-01-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "39",
+        "so2": "22",
+        "co": "14",
+        "o3": "32",
+        "no2": "10",
+        "max": 39.0,
+        "critical": "PM10",
+        "categori": "BAIK",
+        "pm25": NaN
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-agustus-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-agustus-tahun-2021.csv",
+    "rows": 155,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-08-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": 51,
+        "pm25": 68,
+        "so2": 25,
+        "co": 8,
+        "o3": 29,
+        "no2": 22,
+        "max": 68,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-08-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": 47,
+        "pm25": 63,
+        "so2": 24,
+        "co": 10,
+        "o3": 25,
+        "no2": 28,
+        "max": 63,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-08-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": 50,
+        "pm25": 68,
+        "so2": 26,
+        "co": 11,
+        "o3": 19,
+        "no2": 35,
+        "max": 68,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-april-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-april-tahun-2021.csv",
+    "rows": 150,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-04-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "26",
+        "pm25": "42",
+        "so2": "22",
+        "co": "11",
+        "o3": "13",
+        "no2": "19",
+        "max": 42,
+        "critical": "PM25",
+        "categori": "BAIK"
+      },
+      {
+        "tanggal": "2021-04-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "41",
+        "pm25": "54",
+        "so2": "27",
+        "co": "11",
+        "o3": "17",
+        "no2": "19",
+        "max": 54,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-04-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "25",
+        "pm25": "42",
+        "so2": "20",
+        "co": "8",
+        "o3": "18",
+        "no2": "22",
+        "max": 42,
+        "critical": "PM25",
+        "categori": "BAIK"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-desember-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-desember-tahun-2021.csv",
+    "rows": 155,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-12-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "49",
+        "pm25": "65",
+        "so2": "33",
+        "co": "13",
+        "o3": "15",
+        "no2": "12",
+        "max": "65",
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-12-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "28",
+        "pm25": "34",
+        "so2": "31",
+        "co": "7",
+        "o3": "15",
+        "no2": "5",
+        "max": "34",
+        "critical": "PM25",
+        "categori": "BAIK"
+      },
+      {
+        "tanggal": "2021-12-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "49",
+        "pm25": "31",
+        "so2": "9",
+        "co": "19",
+        "o3": "7",
+        "no2": "49",
+        "max": "PM25",
+        "critical": "BAIK",
+        "categori": NaN
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-februari-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-februari-tahun-2021.csv",
+    "rows": 140,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-02-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "59",
+        "pm25": "79",
+        "so2": "21",
+        "co": "26",
+        "o3": "15",
+        "no2": "31",
+        "max": 79,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-02-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "30",
+        "pm25": "46",
+        "so2": "21",
+        "co": "14",
+        "o3": "16",
+        "no2": "24",
+        "max": 46,
+        "critical": "PM25",
+        "categori": "BAIK"
+      },
+      {
+        "tanggal": "2021-02-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "23",
+        "pm25": "33",
+        "so2": "19",
+        "co": "11",
+        "o3": "14",
+        "no2": "19",
+        "max": 33,
+        "critical": "PM25",
+        "categori": "BAIK"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-januari-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-januari-tahun-2021.csv",
+    "rows": 155,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-01-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "38",
+        "pm25": "53",
+        "so2": "29",
+        "co": "6",
+        "o3": "31",
+        "no2": "13",
+        "max": 53,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-01-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "27",
+        "pm25": "46",
+        "so2": "27",
+        "co": "7",
+        "o3": "47",
+        "no2": "7",
+        "max": 47,
+        "critical": "O3",
+        "categori": "BAIK"
+      },
+      {
+        "tanggal": "2021-01-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "44",
+        "pm25": "58",
+        "so2": "25",
+        "co": "7",
+        "o3": "40",
+        "no2": "13",
+        "max": 58,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-juli-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-juli-tahun-2021.csv",
+    "rows": 155,
+    "cols": [
+      "tanggal",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori",
+      "location"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-07-01",
+        "pm10": "DKI1 (Bunderan HI)",
+        "pm25": "55",
+        "so2": "76",
+        "co": "27",
+        "o3": "14",
+        "no2": "20",
+        "max": "31",
+        "critical": 76,
+        "categori": "PM25",
+        "location": "SEDANG"
+      },
+      {
+        "tanggal": "2021-07-02",
+        "pm10": "DKI1 (Bunderan HI)",
+        "pm25": "55",
+        "so2": "70",
+        "co": "33",
+        "o3": "16",
+        "no2": "14",
+        "max": "30",
+        "critical": 70,
+        "categori": "PM25",
+        "location": "SEDANG"
+      },
+      {
+        "tanggal": "2021-07-03",
+        "pm10": "DKI1 (Bunderan HI)",
+        "pm25": "58",
+        "so2": "81",
+        "co": "33",
+        "o3": "12",
+        "no2": "19",
+        "max": "25",
+        "critical": 81,
+        "categori": "PM25",
+        "location": "SEDANG"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-juni-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-juni-tahun-2021.csv",
+    "rows": 150,
+    "cols": [
+      "tanggal",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori",
+      "location"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-06-01",
+        "pm10": "DKI1 (Bunderan HI)",
+        "pm25": 59,
+        "so2": "83",
+        "co": "22",
+        "o3": "18",
+        "no2": "19",
+        "max": 35,
+        "critical": 83,
+        "categori": "PM25",
+        "location": "SEDANG"
+      },
+      {
+        "tanggal": "2021-06-02",
+        "pm10": "DKI1 (Bunderan HI)",
+        "pm25": 59,
+        "so2": "84",
+        "co": "21",
+        "o3": "20",
+        "no2": "24",
+        "max": 38,
+        "critical": 84,
+        "categori": "PM25",
+        "location": "SEDANG"
+      },
+      {
+        "tanggal": "2021-06-03",
+        "pm10": "DKI1 (Bunderan HI)",
+        "pm25": 54,
+        "so2": "76",
+        "co": "22",
+        "o3": "20",
+        "no2": "17",
+        "max": 41,
+        "critical": 76,
+        "categori": "PM25",
+        "location": "SEDANG"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-maret-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-maret-tahun-2021.csv",
+    "rows": 155,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-03-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "37",
+        "pm25": "60",
+        "so2": "20",
+        "co": "12",
+        "o3": "12",
+        "no2": "17",
+        "max": 60,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-03-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "38",
+        "pm25": "55",
+        "so2": "20",
+        "co": "15",
+        "o3": "14",
+        "no2": "28",
+        "max": 55,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-03-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "49",
+        "pm25": "67",
+        "so2": "19",
+        "co": "21",
+        "o3": "17",
+        "no2": "35",
+        "max": 67,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-mei-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-mei-tahun-2021.csv",
+    "rows": 155,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-05-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "52",
+        "pm25": "71",
+        "so2": 23,
+        "co": "10",
+        "o3": "20",
+        "no2": "33",
+        "max": 71,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-05-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "50",
+        "pm25": "67",
+        "so2": 22,
+        "co": "9",
+        "o3": "18",
+        "no2": "17",
+        "max": 67,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-05-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "53",
+        "pm25": "70",
+        "so2": 26,
+        "co": "10",
+        "o3": "20",
+        "no2": "20",
+        "max": 70,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-november-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-november-tahun-2021.csv",
+    "rows": 150,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-11-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "58",
+        "pm25": "85",
+        "so2": "32",
+        "co": "16",
+        "o3": "22",
+        "no2": "41",
+        "max": 85,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-11-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "50",
+        "pm25": "63",
+        "so2": "29",
+        "co": "14",
+        "o3": "22",
+        "no2": "35",
+        "max": 63,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-11-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "49",
+        "pm25": "63",
+        "so2": "33",
+        "co": "13",
+        "o3": "21",
+        "no2": "38",
+        "max": 63,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-oktober-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-oktober-tahun-2021.csv",
+    "rows": 155,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-10-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "57",
+        "pm25": "81",
+        "so2": "30",
+        "co": "11",
+        "o3": "32",
+        "no2": "38",
+        "max": 81,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-10-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "67",
+        "pm25": "99",
+        "so2": "32",
+        "co": "11",
+        "o3": "30",
+        "no2": "35",
+        "max": 99,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-10-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "70",
+        "pm25": "85",
+        "so2": "29",
+        "co": "10",
+        "o3": "28",
+        "no2": "28",
+        "max": 85,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      }
+    ]
+  },
+  {
+    "name": "Rendika7_NLP_ISPU_DKI_JAKARTA_2021_indeks-standar-pencemar-udara-di-spku-bulan-september-tahun-2021.csv",
+    "url": "https://raw.githubusercontent.com/Rendika7/NLP_ISPU_DKI_JAKARTA_2021/main/UAS - TUBES/Dataset/indeks-standar-pencemar-udara-di-spku-bulan-september-tahun-2021.csv",
+    "rows": 150,
+    "cols": [
+      "tanggal",
+      "stasiun",
+      "pm10",
+      "pm25",
+      "so2",
+      "co",
+      "o3",
+      "no2",
+      "max",
+      "critical",
+      "categori"
+    ],
+    "sep": ",",
+    "head": [
+      {
+        "tanggal": "2021-09-01",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "63",
+        "pm25": "88",
+        "so2": "29",
+        "co": "15",
+        "o3": "24",
+        "no2": "38",
+        "max": 88,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-09-02",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "60",
+        "pm25": "83",
+        "so2": "29",
+        "co": "11",
+        "o3": "30",
+        "no2": "28",
+        "max": 83,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      },
+      {
+        "tanggal": "2021-09-03",
+        "stasiun": "DKI1 (Bunderan HI)",
+        "pm10": "60",
+        "pm25": "82",
+        "so2": "27",
+        "co": "11",
+        "o3": "37",
+        "no2": "30",
+        "max": 82,
+        "critical": "PM25",
+        "categori": "SEDANG"
+      }
+    ]
+  }
+]
