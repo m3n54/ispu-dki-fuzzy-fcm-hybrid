@@ -78,7 +78,7 @@ def main() -> None:
 
     # 3. Sweep c in {2, 3, 4, 5, 6} and ridge_lambda on Validation Set
     c_candidates = [2, 3, 4, 5, 6]
-    lambda_candidates = [0.1, 1.0, 5.0, 10.0, 25.0]
+    lambda_candidates = [0.1, 1.0, 5.0, 10.0, 25.0, 50.0, 100.0]
     sweep_rows = []
     for c in c_candidates:
         fcm_c = FuzzyCMeans(n_clusters=c, m=2.0, max_iter=300, tol=1e-5, random_state=42).fit(X_tr_s)

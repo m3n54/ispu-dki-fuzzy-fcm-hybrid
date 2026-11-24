@@ -10,13 +10,13 @@
 
 ## Tasks Checklist
 - [x] **Task 1:** Inisialisasi repositori Git, struktur folder, spec desain, dan implementation plan.
-- [ ] **Task 2:** Akuisisi & dokumentasi dataset publik ISPU DKI Jakarta (`data/raw/`, `data/README.md`).
-- [ ] **Task 3:** Implementasi & pengujian TDD `src/data_loader.py`.
-- [ ] **Task 4:** Implementasi & pengujian TDD `src/fcm.py`.
-- [ ] **Task 5:** Implementasi & pengujian TDD `src/sugeno_hybrid.py`.
-- [ ] **Task 6:** Implementasi & pengujian `src/evaluation.py` dan `src/visualization.py`.
-- [ ] **Task 7:** Eksekusi eksperimen end-to-end `scripts/run_experiment.py` dan inspeksi hasil + grafik.
-- [ ] **Task 8:** Implementasi & verifikasi GUI Streamlit `app.py` + tangkapan layar dokumentasi.
+- [x] **Task 2:** Akuisisi & dokumentasi dataset publik ISPU DKI Jakarta (`data/raw/`, `data/README.md`).
+- [x] **Task 3:** Implementasi & pengujian TDD `src/data_loader.py`.
+- [x] **Task 4:** Implementasi & pengujian TDD `src/fcm.py`.
+- [x] **Task 5:** Implementasi & pengujian TDD `src/sugeno_hybrid.py`.
+- [x] **Task 6:** Implementasi & pengujian `src/evaluation.py` dan `src/visualization.py`.
+- [x] **Task 7:** Eksekusi eksperimen end-to-end `scripts/run_experiment.py` dan inspeksi hasil + grafik.
+- [ ] **Task 8:** Implementasi & verifikasi GUI Streamlit `app.py` (`app.py` selesai ditulis; tersisa verifikasi jalan + tangkapan layar dokumentasi).
 - [ ] **Task 9:** Pembuatan, eksekusi lokal, dan unggah notebook ke Google Colab.
 - [ ] **Task 10:** Penyusunan laporan 9 bab (Markdown, HTML, PDF, DOCX) & publikasi ke Google Docs.
 - [ ] **Task 11:** Verifikasi akhir menyeluruh.
