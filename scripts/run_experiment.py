@@ -115,10 +115,21 @@ def main() -> None:
     lam_opt = float(best_row["best_lambda"])
     print(f"\nSelected optimal c*={c_opt}, ridge_lambda*={lam_opt}")
 
-    # 4. Fit Final FCM on Train
+    # 4. Fit Final FCM on Train and refine ridge_lambda via Stage-2 Hybrid Validation RMSE
     fcm_opt = FuzzyCMeans(n_clusters=c_opt, m=2.0, max_iter=300, tol=1e-5, random_state=42).fit(X_tr_s)
     centers_orig = scaler.inverse_transform(fcm_opt.centers_)
     cluster_labels = make_cluster_labels(centers_orig)
+
+    best_hybrid_val = float("inf")
+    for lam_cand in [1.0, 5.0, 10.0, 25.0, 50.0, 100.0]:
+        ts_cand = TakagiSugenoHybrid(n_clusters=c_opt, n_features=len(FEATURE_COLS), ridge_lambda=lam_cand)
+        ts_cand.initialize_from_fcm(X_tr_s, fcm_opt.u_, fcm_opt.centers_, m=2.0)
+        ts_cand.fit_hybrid(X_tr_s, y_tr, X_va_s, y_va, epochs=150, lr=0.05, ridge_lambda=lam_cand, patience=30)
+        cand_val_rmse = float(np.sqrt(np.mean((y_va - ts_cand.predict(X_va_s)) ** 2)))
+        if cand_val_rmse < best_hybrid_val:
+            best_hybrid_val = cand_val_rmse
+            lam_opt = float(lam_cand)
+    print(f"Refined ridge_lambda* via Hybrid Validation RMSE = {lam_opt} (Val RMSE = {best_hybrid_val:.4f})")
 
     # 5. Fit all 5 Ablation & Benchmark Models
     # Baseline 1: Persistence
