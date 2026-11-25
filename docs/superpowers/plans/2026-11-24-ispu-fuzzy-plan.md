@@ -16,7 +16,7 @@
 - [x] **Task 5:** Implementasi & pengujian TDD `src/sugeno_hybrid.py`.
 - [x] **Task 6:** Implementasi & pengujian `src/evaluation.py` dan `src/visualization.py`.
 - [x] **Task 7:** Eksekusi eksperimen end-to-end `scripts/run_experiment.py` dan inspeksi hasil + grafik.
-- [ ] **Task 8:** Implementasi & verifikasi GUI Streamlit `app.py` (`app.py` selesai ditulis; tersisa verifikasi jalan + tangkapan layar dokumentasi).
-- [ ] **Task 9:** Pembuatan, eksekusi lokal, dan unggah notebook ke Google Colab.
-- [ ] **Task 10:** Penyusunan laporan 9 bab (Markdown, HTML, PDF, DOCX) & publikasi ke Google Docs.
-- [ ] **Task 11:** Verifikasi akhir menyeluruh.
+- [x] **Task 8:** Implementasi & verifikasi GUI Streamlit `app.py` beserta 4 tangkapan layar dokumentasi.
+- [x] **Task 9:** Pembuatan, eksekusi lokal, dan unggah notebook ke Google Colab.
+- [x] **Task 10:** Penyusunan laporan 9 bab (Markdown, HTML, PDF, DOCX) & publikasi ke Google Docs.
+- [x] **Task 11:** Verifikasi akhir menyeluruh.
