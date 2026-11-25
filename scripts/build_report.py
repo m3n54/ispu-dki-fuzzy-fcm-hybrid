@@ -42,11 +42,19 @@ def fmt_int_id(v: int) -> str:
 
 
 def inline_to_html(text: str) -> str:
-    """Escape HTML safely while converting **bold** and *italic* inline markers."""
-    tokens = re.split(r"(\*\*[^*]+\*\*|\*[^*]+\*)", text)
+    """Escape HTML safely while converting **bold**, *italic*, and [label](url) links."""
+    tokens = re.split(r"(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\(https?://[^)]+\))", text)
     out: list[str] = []
+    link_re = re.compile(r"^\[([^\]]+)\]\((https?://[^)]+)\)$")
     for tok in tokens:
-        if tok.startswith("**") and tok.endswith("**") and len(tok) > 4:
+        m = link_re.match(tok)
+        if m:
+            label, url = m.group(1), m.group(2)
+            out.append(
+                f'<a href="{html.escape(url, quote=True)}" target="_blank" '
+                f'style="color:#000000; text-decoration:underline;">{html.escape(label)}</a>'
+            )
+        elif tok.startswith("**") and tok.endswith("**") and len(tok) > 4:
             out.append(f"<strong>{html.escape(tok[2:-2])}</strong>")
         elif tok.startswith("*") and tok.endswith("*") and len(tok) > 2:
             out.append(f"<em>{html.escape(tok[1:-1])}</em>")
@@ -55,11 +63,45 @@ def inline_to_html(text: str) -> str:
     return "".join(out)
 
 
+def _add_docx_hyperlink(paragraph, url: str, label: str, font_name: str = "Times New Roman", font_size: Pt = Pt(12)) -> None:
+    """Append an external OOXML hyperlink styled in pure black underlined Times New Roman."""
+    part = paragraph.part
+    r_id = part.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), r_id)
+    new_run = OxmlElement("w:r")
+    rPr = OxmlElement("w:rPr")
+    rFonts = OxmlElement("w:rFonts")
+    rFonts.set(qn("w:ascii"), font_name)
+    rFonts.set(qn("w:hAnsi"), font_name)
+    rPr.append(rFonts)
+    color = OxmlElement("w:color")
+    color.set(qn("w:val"), "000000")
+    rPr.append(color)
+    u = OxmlElement("w:u")
+    u.set(qn("w:val"), "single")
+    rPr.append(u)
+    sz = OxmlElement("w:sz")
+    sz.set(qn("w:val"), str(int(font_size.pt * 2)))
+    rPr.append(sz)
+    new_run.append(rPr)
+    t_el = OxmlElement("w:t")
+    t_el.text = label
+    new_run.append(t_el)
+    hyperlink.append(new_run)
+    paragraph._p.append(hyperlink)
+
+
 def _add_formatted_runs(paragraph, text: str, font_name: str = "Times New Roman", font_size: Pt = Pt(12), base_bold: bool = False) -> None:
-    """Add runs to a python-docx paragraph parsing **bold** and *italic* inline markers."""
-    tokens = re.split(r"(\*\*[^*]+\*\*|\*[^*]+\*)", text)
+    """Add runs to a python-docx paragraph parsing **bold**, *italic*, and [label](url) links."""
+    tokens = re.split(r"(\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\(https?://[^)]+\))", text)
+    link_re = re.compile(r"^\[([^\]]+)\]\((https?://[^)]+)\)$")
     for tok in tokens:
         if not tok:
+            continue
+        m = link_re.match(tok)
+        if m:
+            _add_docx_hyperlink(paragraph, m.group(2), m.group(1), font_name=font_name, font_size=font_size)
             continue
         if tok.startswith("**") and tok.endswith("**") and len(tok) > 4:
             run = paragraph.add_run(tok[2:-2])
@@ -93,6 +135,8 @@ def build_report_sections(res: dict, art: dict, links: dict) -> list[dict]:
     lam_opt = float(res["selected_lambda"])
     cluster_labels: list[str] = art["cluster_labels"]
     colab_url = links.get("colab_url", "https://colab.research.google.com/drive/16HuDWxvMATIR4tWVLtUFNNe_x_u4qZWg")
+    streamlit_url = links.get("streamlit_url", "https://ispu-dki-fuzzy-fcm-hybrid.streamlit.app/")
+    github_url = links.get("github_url", "https://github.com/m3n54/ispu-dki-fuzzy-fcm-hybrid")
 
     desc_rows = []
     for k, label in [
@@ -499,14 +543,31 @@ def build_report_sections(res: dict, art: dict, links: dict) -> list[dict]:
                     "*src/evaluation.py* (metrik regresi dan pemetaan Permen LHK), serta *src/visualization.py*."
                 )},
                 {"code": code_snippet},
-                {"p": f"Notebook interaktif lengkap yang dapat dijalankan ulang satu klik di Google Colab tersedia pada berkas notebooks/ISPU_Fuzzy_FCM_Hybrid.ipynb dan tautan berikut: {colab_url}."},
+                {"p": (
+                    f"Notebook interaktif lengkap yang dapat dijalankan ulang satu klik di Google Colab (dengan akses publik *Viewer*) tersedia pada berkas "
+                    f"*notebooks/ISPU_Fuzzy_FCM_Hybrid.ipynb* melalui tautan [{colab_url}]({colab_url}), sedangkan seluruh kode sumber proyek "
+                    f"dipublikasikan pada repositori GitHub [{github_url}]({github_url})."
+                )},
                 {"h2": "5.2 Dokumentasi GUI Interaktif (Streamlit)"},
                 {"p": (
-                    "Sebagai antarmuka pengguna aplikasi, dibangun GUI web interaktif berbasis *Streamlit* (*app.py*) yang memenuhi seluruh kriteria fungsional: "
+                    f"Sebagai antarmuka pengguna aplikasi, dibangun GUI web interaktif berbasis *Streamlit* (*app.py*) yang telah di-*deploy* secara publik pada *Streamlit Community Cloud* "
+                    f"sehingga dapat diakses langsung oleh dosen maupun pengguna lain melalui tautan [{streamlit_url}]({streamlit_url}) tanpa perlu instalasi lokal. "
+                    "Antarmuka GUI tersebut memenuhi seluruh kriteria fungsional: "
                     "(1) menerima *input* manual 6 parameter polutan maupun *preset* data nyata Jakarta, (2) menampilkan peta *cluster* PCA 2D dan derajat keanggotaan FCM (Gambar 5.1), "
                     "(3) memvisualisasikan kurva fungsi keanggotaan Gaussian lengkap dengan posisi *input* pengguna (Gambar 5.2), (4) merinci tabel inferensi *fuzzy* dan kontribusi tiap aturan (Gambar 5.3), serta "
-                    "(5) menyajikan keputusan akhir prediksi skor ISPU(*t*+1), kategori Permen LHK, ringkasan ablasi (Gambar 5.4), dan rekomendasi mitigasi kesehatan."
+                    "(5) menyajikan keputusan akhir prediksi skor ISPU(*t*+1), kategori Permen LHK, ringkasan ablasi (Gambar 5.4), dan rekomendasi mitigasi kesehatan. "
+                    "Ringkasan seluruh tautan akses publik dokumentasi program dan GUI disajikan pada Tabel 5.1."
                 )},
+                {"table": {
+                    "label": "Tabel 5.1",
+                    "caption": "Tautan dokumentasi implementasi program, repositori kode, dan antarmuka pengguna (GUI).",
+                    "headers": ["Komponen", "Keterangan Akses", "Tautan Publik"],
+                    "rows": [
+                        ["Notebook Google Colab", "Eksperimen interaktif FCM, Takagi-Sugeno Orde-1, dan Hybrid Learning (Viewer publik)", f"[{colab_url}]({colab_url})"],
+                        ["GUI Web Streamlit", "Antarmuka web interaktif prediksi ISPU(t+1) daring (Streamlit Community Cloud)", f"[{streamlit_url}]({streamlit_url})"],
+                        ["Repositori GitHub", "Kode sumber lengkap (src/, app.py, scripts/, tests/, notebooks/)", f"[{github_url}]({github_url})"],
+                    ],
+                }},
                 {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_overview.png"), "label": "Gambar 5.1", "caption": "Tampilan utama GUI Streamlit: input sidebar, kartu keputusan akhir, dan visualisasi clustering FCM."}},
                 {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_mf.png"), "label": "Gambar 5.2", "caption": "Tab fungsi keanggotaan Gaussian interaktif dengan garis penanda nilai input pengguna."}},
                 {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_inference.png"), "label": "Gambar 5.3", "caption": "Tab rincian inferensi Takagi-Sugeno Orde-1, kontribusi aturan, dan persamaan defuzzifikasi."}},

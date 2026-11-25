@@ -316,12 +316,21 @@ class TakagiSugenoHybrid:
         ...
 ```
 
-Notebook interaktif lengkap yang dapat dijalankan ulang satu klik di Google Colab tersedia pada berkas notebooks/ISPU_Fuzzy_FCM_Hybrid.ipynb dan tautan berikut: https://colab.research.google.com/drive/16HuDWxvMATIR4tWVLtUFNNe_x_u4qZWg.
+Notebook interaktif lengkap yang dapat dijalankan ulang satu klik di Google Colab (dengan akses publik *Viewer*) tersedia pada berkas *notebooks/ISPU_Fuzzy_FCM_Hybrid.ipynb* melalui tautan [https://colab.research.google.com/drive/16HuDWxvMATIR4tWVLtUFNNe_x_u4qZWg](https://colab.research.google.com/drive/16HuDWxvMATIR4tWVLtUFNNe_x_u4qZWg), sedangkan seluruh kode sumber proyek dipublikasikan pada repositori GitHub [https://github.com/m3n54/ispu-dki-fuzzy-fcm-hybrid](https://github.com/m3n54/ispu-dki-fuzzy-fcm-hybrid).
 
 
 ## 5.2 Dokumentasi GUI Interaktif (Streamlit)
 
-Sebagai antarmuka pengguna aplikasi, dibangun GUI web interaktif berbasis *Streamlit* (*app.py*) yang memenuhi seluruh kriteria fungsional: (1) menerima *input* manual 6 parameter polutan maupun *preset* data nyata Jakarta, (2) menampilkan peta *cluster* PCA 2D dan derajat keanggotaan FCM (Gambar 5.1), (3) memvisualisasikan kurva fungsi keanggotaan Gaussian lengkap dengan posisi *input* pengguna (Gambar 5.2), (4) merinci tabel inferensi *fuzzy* dan kontribusi tiap aturan (Gambar 5.3), serta (5) menyajikan keputusan akhir prediksi skor ISPU(*t*+1), kategori Permen LHK, ringkasan ablasi (Gambar 5.4), dan rekomendasi mitigasi kesehatan.
+Sebagai antarmuka pengguna aplikasi, dibangun GUI web interaktif berbasis *Streamlit* (*app.py*) yang telah di-*deploy* secara publik pada *Streamlit Community Cloud* sehingga dapat diakses langsung oleh dosen maupun pengguna lain melalui tautan [https://ispu-dki-fuzzy-fcm-hybrid.streamlit.app/](https://ispu-dki-fuzzy-fcm-hybrid.streamlit.app/) tanpa perlu instalasi lokal. Antarmuka GUI tersebut memenuhi seluruh kriteria fungsional: (1) menerima *input* manual 6 parameter polutan maupun *preset* data nyata Jakarta, (2) menampilkan peta *cluster* PCA 2D dan derajat keanggotaan FCM (Gambar 5.1), (3) memvisualisasikan kurva fungsi keanggotaan Gaussian lengkap dengan posisi *input* pengguna (Gambar 5.2), (4) merinci tabel inferensi *fuzzy* dan kontribusi tiap aturan (Gambar 5.3), serta (5) menyajikan keputusan akhir prediksi skor ISPU(*t*+1), kategori Permen LHK, ringkasan ablasi (Gambar 5.4), dan rekomendasi mitigasi kesehatan. Ringkasan seluruh tautan akses publik dokumentasi program dan GUI disajikan pada Tabel 5.1.
+
+
+**Tabel 5.1** Tautan dokumentasi implementasi program, repositori kode, dan antarmuka pengguna (GUI).
+
+| Komponen | Keterangan Akses | Tautan Publik |
+| --- | --- | --- |
+| Notebook Google Colab | Eksperimen interaktif FCM, Takagi-Sugeno Orde-1, dan Hybrid Learning (Viewer publik) | [https://colab.research.google.com/drive/16HuDWxvMATIR4tWVLtUFNNe_x_u4qZWg](https://colab.research.google.com/drive/16HuDWxvMATIR4tWVLtUFNNe_x_u4qZWg) |
+| GUI Web Streamlit | Antarmuka web interaktif prediksi ISPU(t+1) daring (Streamlit Community Cloud) | [https://ispu-dki-fuzzy-fcm-hybrid.streamlit.app/](https://ispu-dki-fuzzy-fcm-hybrid.streamlit.app/) |
+| Repositori GitHub | Kode sumber lengkap (src/, app.py, scripts/, tests/, notebooks/) | [https://github.com/m3n54/ispu-dki-fuzzy-fcm-hybrid](https://github.com/m3n54/ispu-dki-fuzzy-fcm-hybrid) |
 
 
 ![Gambar 5.1 Tampilan utama GUI Streamlit: input sidebar, kartu keputusan akhir, dan visualisasi clustering FCM.](../artifacts/gui_screenshots/gui_overview.png)
