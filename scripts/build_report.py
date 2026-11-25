@@ -1,11 +1,10 @@
-"""Build complete 9-chapter academic report in Markdown, HTML, and DOCX from real experiment artifacts."""
+"""Build complete academic report in exact UNDIP Times New Roman black-text format (MD, HTML/PDF, DOCX)."""
 from __future__ import annotations
 
 import html
 import json
 from pathlib import Path
 import re
-import sys
 
 import docx
 from docx.enum.table import WD_TABLE_ALIGNMENT
@@ -17,9 +16,11 @@ from docx.shared import Inches, Pt, RGBColor
 ROOT = Path(__file__).resolve().parents[1]
 ART_DIR = ROOT / "artifacts"
 REPORT_DIR = ROOT / "report"
+LOGO_PATH = REPORT_DIR / "assets" / "logo_undip.png"
 
 FEATURE_COLS = ["pm10", "pm25", "so2", "co", "o3", "no2"]
 FEATURE_LABELS = {"pm10": "PM10", "pm25": "PM2.5", "so2": "SO2", "co": "CO", "o3": "O3", "no2": "NO2"}
+BLACK = RGBColor(0x00, 0x00, 0x00)
 
 
 def load_inputs() -> tuple[dict, dict, dict]:
@@ -30,85 +31,121 @@ def load_inputs() -> tuple[dict, dict, dict]:
     return res, art, links
 
 
-def fmt_num(v: float, decimals: int = 2) -> str:
-    return f"{v:.{decimals}f}"
+def fmt_id(v: float, decimals: int = 2) -> str:
+    """Format number in Indonesian locale: dot for thousands, comma for decimals."""
+    formatted = f"{v:,.{decimals}f}"
+    return formatted.replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def fmt_int_id(v: int) -> str:
+    return f"{int(v):,}".replace(",", ".")
+
+
+def inline_to_html(text: str) -> str:
+    """Escape HTML safely while converting **bold** and *italic* inline markers."""
+    tokens = re.split(r"(\*\*[^*]+\*\*|\*[^*]+\*)", text)
+    out: list[str] = []
+    for tok in tokens:
+        if tok.startswith("**") and tok.endswith("**") and len(tok) > 4:
+            out.append(f"<strong>{html.escape(tok[2:-2])}</strong>")
+        elif tok.startswith("*") and tok.endswith("*") and len(tok) > 2:
+            out.append(f"<em>{html.escape(tok[1:-1])}</em>")
+        else:
+            out.append(html.escape(tok))
+    return "".join(out)
+
+
+def _add_formatted_runs(paragraph, text: str, font_name: str = "Times New Roman", font_size: Pt = Pt(12), base_bold: bool = False) -> None:
+    """Add runs to a python-docx paragraph parsing **bold** and *italic* inline markers."""
+    tokens = re.split(r"(\*\*[^*]+\*\*|\*[^*]+\*)", text)
+    for tok in tokens:
+        if not tok:
+            continue
+        if tok.startswith("**") and tok.endswith("**") and len(tok) > 4:
+            run = paragraph.add_run(tok[2:-2])
+            run.bold = True
+        elif tok.startswith("*") and tok.endswith("*") and len(tok) > 2:
+            run = paragraph.add_run(tok[1:-1])
+            run.bold = base_bold
+            run.italic = True
+        else:
+            run = paragraph.add_run(tok)
+            run.bold = base_bold
+        run.font.name = font_name
+        run.font.size = font_size
+        run.font.color.rgb = BLACK
 
 
 def md_table(headers: list[str], rows: list[list[str]]) -> str:
     sep = ["---"] * len(headers)
-    lines = [
-        "| " + " | ".join(headers) + " |",
-        "| " + " | ".join(sep) + " |",
-    ]
+    lines = ["| " + " | ".join(headers) + " |", "| " + " | ".join(sep) + " |"]
     for r in rows:
         lines.append("| " + " | ".join(r) + " |")
     return "\n".join(lines)
 
 
 def build_report_sections(res: dict, art: dict, links: dict) -> list[dict]:
-    """Build structured sections used identically for Markdown, HTML/PDF, and DOCX."""
+    """Build structured sections matching exact UNDIP Kelompok 11 format."""
     cs = res["clean_stats"]
     sb = res["split_boundaries"]
     ds = res["descriptive_stats"]
     c_opt = int(res["selected_c"])
     lam_opt = float(res["selected_lambda"])
     cluster_labels: list[str] = art["cluster_labels"]
-    colab_url = links.get("colab_url", "[Tautan Google Colab akan diisi setelah unggah]")
-    docs_url = links.get("google_docs_url", "[Tautan Google Docs]")
+    colab_url = links.get("colab_url", "https://colab.research.google.com/drive/16HuDWxvMATIR4tWVLtUFNNe_x_u4qZWg")
 
-    # Tables preparation
     desc_rows = []
     for k, label in [
-        ("pm10", "PM10 (Sub-Indeks t)"),
-        ("pm25", "PM2.5 (Sub-Indeks t)"),
-        ("so2", "SO2 (Sub-Indeks t)"),
-        ("co", "CO (Sub-Indeks t)"),
-        ("o3", "O3 (Sub-Indeks t)"),
-        ("no2", "NO2 (Sub-Indeks t)"),
-        ("max", "ISPU Max Hari Ini (t)"),
-        ("target_ispu_next", "Target ISPU Besok (t+1)"),
+        ("pm10", "PM10 (Sub-Indeks *t*)"),
+        ("pm25", "PM2.5 (Sub-Indeks *t*)"),
+        ("so2", "SO2 (Sub-Indeks *t*)"),
+        ("co", "CO (Sub-Indeks *t*)"),
+        ("o3", "O3 (Sub-Indeks *t*)"),
+        ("no2", "NO2 (Sub-Indeks *t*)"),
+        ("max", "ISPU Max Hari Ini (*t*)"),
+        ("target_ispu_next", "Target ISPU Besok (*t*+1)"),
     ]:
         d = ds[k]
         desc_rows.append([
             label,
-            str(d["count"]),
-            fmt_num(d["mean"]),
-            fmt_num(d["std"]),
-            fmt_num(d["min"], 0),
-            fmt_num(d["median"], 0),
-            fmt_num(d["max"], 0),
+            fmt_int_id(d["count"]),
+            fmt_id(d["mean"], 2),
+            fmt_id(d["std"], 2),
+            fmt_id(d["min"], 0),
+            fmt_id(d["median"], 0),
+            fmt_id(d["max"], 0),
         ])
 
     sweep_rows = []
     for r in res["sweep_results"]:
         sweep_rows.append([
             str(r["c"]),
-            fmt_num(r["pc"], 4),
-            fmt_num(r["pe"], 4),
-            fmt_num(r["xb"], 4),
-            fmt_num(r["jm"], 2),
+            fmt_id(r["pc"], 4),
+            fmt_id(r["pe"], 4),
+            fmt_id(r["xb"], 4),
+            fmt_id(r["jm"], 2),
             str(r["n_iter"]),
-            fmt_num(r["best_lambda"], 1),
-            fmt_num(r["lse_val_rmse"], 4),
+            fmt_id(r["best_lambda"], 1),
+            fmt_id(r["lse_val_rmse"], 4),
         ])
 
     cluster_prof_rows = []
     for row in res["cluster_summary"]:
         cluster_prof_rows.append([
             row["label"],
-            str(row["count"]),
-            fmt_num(row["center_pm10"]),
-            fmt_num(row["center_pm25"]),
-            fmt_num(row["center_so2"]),
-            fmt_num(row["center_co"]),
-            fmt_num(row["center_o3"]),
-            fmt_num(row["center_no2"]),
-            fmt_num(row["mean_target_ispu"]),
+            fmt_int_id(row["count"]),
+            fmt_id(row["center_pm10"], 2),
+            fmt_id(row["center_pm25"], 2),
+            fmt_id(row["center_so2"], 2),
+            fmt_id(row["center_co"], 2),
+            fmt_id(row["center_o3"], 2),
+            fmt_id(row["center_no2"], 2),
+            fmt_id(row["mean_target_ispu"], 2),
         ])
 
     sample_u_rows = []
     for item in res["sample_memberships"]:
-        u_strs = [fmt_num(u, 4) for u in item["memberships"]]
+        u_strs = [fmt_id(u, 4) for u in item["memberships"]]
         sample_u_rows.append([
             item["tanggal"],
             item["stasiun"].split("(")[0].strip(),
@@ -117,7 +154,6 @@ def build_report_sections(res: dict, art: dict, links: dict) -> list[dict]:
             f"C{item['dominant_cluster']}",
         ])
 
-    # Premise comparison rows (initial FCM vs Hybrid-tuned)
     prem = res["premise_orig"]
     prem_rows = []
     for i in range(c_opt):
@@ -125,44 +161,41 @@ def build_report_sections(res: dict, art: dict, links: dict) -> list[dict]:
             prem_rows.append([
                 f"C{i+1}",
                 FEATURE_LABELS[col],
-                fmt_num(prem["init_centers"][i][j]),
-                fmt_num(prem["opt_centers"][i][j]),
-                fmt_num(prem["init_sigmas"][i][j]),
-                fmt_num(prem["opt_sigmas"][i][j]),
+                fmt_id(prem["init_centers"][i][j], 2),
+                fmt_id(prem["opt_centers"][i][j], 2),
+                fmt_id(prem["init_sigmas"][i][j], 2),
+                fmt_id(prem["opt_sigmas"][i][j], 2),
             ])
 
-    # Sugeno consequents in scaled space (p0..p6)
     conseq = art["ts_hybrid"]["consequents"]
     conseq_rows = []
     for i in range(c_opt):
         conseq_rows.append([
             f"Aturan {i+1}",
-            fmt_num(conseq[i][0], 3),
-            *[fmt_num(conseq[i][j + 1], 3) for j in range(len(FEATURE_COLS))],
+            fmt_id(conseq[i][0], 3),
+            *[fmt_id(conseq[i][j + 1], 3) for j in range(len(FEATURE_COLS))],
         ])
 
-    # Ablation tables (Val and Test)
     def build_ablation_rows(split_key: str) -> list[list[str]]:
         out = []
         for model_name, m in res["ablation"][split_key].items():
             out.append([
                 model_name,
-                fmt_num(m["rmse"], 3),
-                fmt_num(m["mae"], 3),
-                fmt_num(m["r2"], 4),
-                f"{m['mape']:.2f}%",
-                f"{m['category_accuracy']*100:.2f}%",
-                f"{m['adjacent_category_accuracy']*100:.2f}%",
+                fmt_id(m["rmse"], 3),
+                fmt_id(m["mae"], 3),
+                fmt_id(m["r2"], 4),
+                f"{fmt_id(m['mape'], 2)}%",
+                f"{fmt_id(m['category_accuracy']*100, 2)}%",
+                f"{fmt_id(m['adjacent_category_accuracy']*100, 2)}%",
             ])
         return out
 
-    # Scenario step-by-step rows
     scen_rows = []
     for sc in res["scenarios"]:
         inp = sc["inputs"]
         inp_str = ", ".join([f"{FEATURE_LABELS[c]}={inp[c]:.0f}" for c in FEATURE_COLS])
-        w_str = " | ".join([f"w̄{i+1}={sc['w_bar'][i]:.3f}" for i in range(c_opt)])
-        f_str = " | ".join([f"f{i+1}={sc['rule_outputs'][i]:.2f}" for i in range(c_opt)])
+        w_str = " | ".join([f"w̄{i+1}={fmt_id(sc['w_bar'][i], 3)}" for i in range(c_opt)])
+        f_str = " | ".join([f"f{i+1}={fmt_id(sc['rule_outputs'][i], 2)}" for i in range(c_opt)])
         err = abs(sc["predicted_ispu_next"] - sc["actual_ispu_next"])
         scen_rows.append([
             sc["preset_name"],
@@ -170,9 +203,9 @@ def build_report_sections(res: dict, art: dict, links: dict) -> list[dict]:
             inp_str,
             w_str,
             f_str,
-            f"{sc['predicted_ispu_next']:.2f} ({sc['predicted_category_next']})",
+            f"{fmt_id(sc['predicted_ispu_next'], 2)} ({sc['predicted_category_next']})",
             f"{sc['actual_ispu_next']:.0f} ({sc['actual_category_next']})",
-            f"{err:.2f}",
+            fmt_id(err, 2),
         ])
 
     test_m_pers = res["ablation"]["test"]["Persistence (ISPU_t)"]
@@ -201,316 +234,348 @@ def build_report_sections(res: dict, art: dict, links: dict) -> list[dict]:
         "        ..."
     )
 
+    total_paired = res["n_paired"]
+    sedang_n = res["target_category_counts"].get("SEDANG", 0)
+    ts_n = res["target_category_counts"].get("TIDAK SEHAT", 0)
+    baik_n = res["target_category_counts"].get("BAIK", 0)
+
     sections = [
         {
             "type": "cover",
-            "title": "STUDI KASUS MODEL FUZZY, CLUSTERING FUZZY, DAN ESTIMASI PARAMETER",
-            "subtitle": "Prediksi Dini Indeks Standar Pencemar Udara (ISPU) Hari Berikutnya di DKI Jakarta Menggunakan Takagi-Sugeno Orde-1 Berbasis Fuzzy C-Means dan Hybrid Learning",
-            "meta": [
-                ("Mata Kuliah", "Komputasi Lunak"),
-                ("Program Studi", "Informatika — Fakultas Sains dan Matematika"),
-                ("Universitas", "Universitas Diponegoro"),
-                ("Nama Mahasiswa", "Menza Isaiah Tampubolon"),
-                ("NIM", "24060124140138"),
-                ("Kelas", "[Kelas]"),
-                ("Dosen Pengampu", "[Nama Dosen Pengampu]"),
-                ("Tahun", "2026"),
+            "top_lines": [
+                "PROYEK BESAR INDIVIDU",
+                "Prediksi Dini Indeks Standar Pencemar Udara (ISPU) Hari Berikutnya di DKI Jakarta Menggunakan Takagi-Sugeno Orde-1 Berbasis *Fuzzy C-Means* dan *Hybrid Learning*",
+            ],
+            "course_line": "MATA KULIAH KOMPUTASI LUNAK",
+            "logo_path": str(LOGO_PATH),
+            "members": [
+                ("Menza Isaiah Tampubolon", "24060124140138"),
+            ],
+            "institution_lines": [
+                "DEPARTEMEN ILMU KOMPUTER / INFORMATIKA",
+                "FAKULTAS SAINS DAN MATEMATIKA",
+                "UNIVERSITAS DIPONEGORO",
+                "2026",
             ],
         },
         {
             "type": "chapter",
-            "heading": "2. PENDAHULUAN",
+            "heading": "BAB 1. PENDAHULUAN",
             "blocks": [
-                {"h2": "2.1 Latar Belakang"},
+                {"h2": "1.1 Latar Belakang"},
                 {"p": (
                     "Kualitas udara ambien di Provinsi DKI Jakarta merupakan persoalan lingkungan dan kesehatan masyarakat yang krusial. "
                     "Aktivitas transportasi padat, emisi industri, serta dinamika meteorologi perkotaan menyebabkan fluktuasi harian konsentrasi polutan seperti "
                     "partikulat kasar (PM10), partikulat halus (PM2.5), sulfur dioksida (SO2), karbon monoksida (CO), ozon (O3), dan nitrogen dioksida (NO2). "
-                    "Sejak diberlakukannya Peraturan Menteri Lingkungan Hidup dan Kehutanan (Permen LHK) Nomor P.14/MENLHK/SETJEN/KUM.1/7/2020 [7], "
+                    "Sejak diberlakukannya Peraturan Menteri Lingkungan Hidup dan Kehutanan (Permen LHK) Nomor P.14/MENLHK/SETJEN/KUM.1/7/2020, "
                     "parameter PM2.5 secara resmi dimasukkan ke dalam perhitungan Indeks Standar Pencemar Udara (ISPU) harian yang dipantau oleh lima "
-                    "Stasiun Pemantau Kualitas Udara (SPKU) Dinas Lingkungan Hidup DKI Jakarta."
+                    "Stasiun Pemantau Kualitas Udara (SPKU) Dinas Lingkungan Hidup DKI Jakarta (Kementerian Lingkungan Hidup dan Kehutanan [KLHK], 2020; "
+                    "Dinas Lingkungan Hidup Provinsi DKI Jakarta, 2021)."
                 )},
                 {"p": (
-                    "Pentingnya penelitian prediksi dini ISPU hari berikutnya (ISPU(t+1)) terletak pada fungsinya sebagai sistem peringatan dini (early warning system). "
+                    "Pentingnya penelitian prediksi dini ISPU hari berikutnya (ISPU(*t*+1)) terletak pada fungsinya sebagai sistem peringatan dini (*early warning system*). "
                     "Apabila pemangku kebijakan dan masyarakat hanya mengetahui status mutu udara pada hari berjalan, langkah mitigasi seperti imbauan pembatasan "
                     "aktivitas luar ruang atau rekayasa lalu lintas sering terlambat dilakukan. Memprediksi skor ISPU besok berdasarkan profil enam polutan hari ini "
-                    "memungkinkan tindakan preventif sebelum episode polusi Tinggi (Tidak Sehat) terjadi."
+                    "memungkinkan tindakan preventif sebelum episode polusi tinggi terjadi."
                 )},
                 {"p": (
                     "Pendekatan konvensional dalam pemantauan dan peramalan kualitas udara memiliki dua kelemahan mendasar. Pertama, klasifikasi konvensional menggunakan "
-                    "ambang batas tegas (crisp threshold)—misalnya skor 50 dikategorikan Baik sedangkan skor 51 langsung menjadi Sedang—yang tidak merepresentasikan "
-                    "transisi risiko kesehatan secara kontinu. Kedua, model statistik linear global seperti Regresi Linear Berganda (OLS) maupun model persistensi "
-                    "(ISPU(t+1) = ISPU(t)) kesulitan menangkap hubungan non-linear serta interaksi antarpolutan yang berbeda antara hari bersih dan hari berpolusi tinggi."
+                    "ambang batas tegas (*crisp threshold*)—misalnya skor 50 dikategorikan Baik sedangkan skor 51 langsung menjadi Sedang—yang tidak merepresentasikan "
+                    "transisi risiko kesehatan secara kontinu. Kedua, model statistik linear global seperti Regresi Linear Berganda (*Ordinary Least Squares*/OLS) maupun model persistensi "
+                    "(ISPU(*t*+1) = ISPU(*t*)) kesulitan menangkap hubungan non-linear serta interaksi antarpolutan yang berbeda antara kondisi udara bersih dan episode polusi tinggi."
                 )},
                 {"p": (
-                    "Untuk mengatasi hal tersebut, penelitian ini memilih Model Fuzzy Takagi-Sugeno Orde-1 [2]. Model fuzzy mampu memodelkan ketidakpastian dan "
-                    "perubahan bertahap antar-rezim polusi melalui himpunan fuzzy [1], sementara keluaran berupa kombinasi linear variabel masukan pada Takagi-Sugeno Orde-1 "
+                    "Untuk mengatasi hal tersebut, penelitian ini menerapkan model *fuzzy* Takagi-Sugeno Orde-1 (Takagi & Sugeno, 1985). Model *fuzzy* mampu memodelkan ketidakpastian dan "
+                    "perubahan bertahap antar-rezim polusi melalui himpunan *fuzzy* (Zadeh, 1965), sementara keluaran berupa kombinasi linear variabel masukan pada Takagi-Sugeno Orde-1 "
                     "memberikan kemampuan aproksimasi fungsi non-linear yang jauh lebih akurat dibandingkan keluaran konstanta maupun himpunan linguistik statis."
                 )},
                 {"p": (
-                    "Penentuan fungsi keanggotaan dan basis aturan fuzzy secara subjektif dari pakar sering kali tidak optimal untuk data multivariat 6 dimensi. "
-                    "Oleh karena itu, digunakan metode Clustering Fuzzy C-Means (FCM) [3] untuk mempartisi ruang data secara objektif dan berbasis data. "
-                    "Berbeda dari hard clustering (seperti K-Means) yang memaksa setiap hari pengamatan masuk secara mutlak ke satu kelompok, FCM memberikan derajat "
-                    "keanggotaan kontinu di antara 0 dan 1 sehingga mencerminkan hari-hari transisi polusi secara lebih realistis."
+                    "Penentuan fungsi keanggotaan dan basis aturan *fuzzy* secara subjektif dari pakar sering kali tidak optimal untuk data multivariat enam dimensi. "
+                    "Oleh karena itu, digunakan metode *clustering* *Fuzzy C-Means* (FCM) (Bezdek, 1981) untuk mempartisi ruang data secara objektif dan berbasis data. "
+                    "Berbeda dari *hard clustering* yang memaksa setiap hari pengamatan masuk secara mutlak ke satu kelompok saja, FCM memberikan derajat "
+                    "keanggotaan kontinu pada interval [0, 1] sehingga mencerminkan hari-hari transisi polusi secara lebih realistis."
                 )},
                 {"p": (
-                    "Meskipun pusat dan lebar fungsi keanggotaan awal dapat diturunkan langsung dari FCM, sistem fuzzy yang hanya mengandalkan inisialisasi clustering "
-                    "belum menjamin kesalahan prediksi minimum. Karena itu, diperlukan tahap Estimasi Parameter secara sistematis menggunakan pendekatan "
-                    "Hybrid Learning (Jang, 1993) [5] yang menggabungkan Regularized Least Squares Estimation (LSE) untuk menyetel parameter konsekuen linear secara eksak "
-                    "dan Gradient Descent untuk menyempurnakan parameter premis Gaussian (pusat dan lebar kurva keanggotaan) hingga model menjadi lebih representatif."
+                    "Meskipun pusat dan lebar fungsi keanggotaan awal dapat diturunkan langsung dari FCM, sistem *fuzzy* yang hanya mengandalkan inisialisasi *clustering* "
+                    "belum menjamin kesalahan prediksi minimum. Karena itu, diperlukan tahap estimasi parameter secara sistematis menggunakan pendekatan "
+                    "*Hybrid Learning* (Jang, 1993) yang menggabungkan *Regularized Least Squares Estimation* (LSE) untuk menyetel parameter konsekuen linear secara eksak "
+                    "dan *Gradient Descent* untuk menyempurnakan parameter premis Gaussian hingga model menjadi lebih representatif (Karki, 2023)."
                 )},
-                {"h2": "2.2 Rumusan Masalah"},
+                {"h2": "1.2 Rumusan Masalah"},
+                {"p": "Berdasarkan latar belakang di atas, rumusan masalah penelitian ini adalah sebagai berikut."},
                 {"ol": [
-                    "Bagaimana membangun model fuzzy Takagi-Sugeno Orde-1 untuk memprediksi skor dan kategori ISPU hari berikutnya (ISPU(t+1)) di DKI Jakarta dari 6 parameter polutan harian?",
-                    "Bagaimana proses pembentukan kelompok data polusi udara DKI Jakarta secara objektif menggunakan metode clustering Fuzzy C-Means (FCM) dan bagaimana validitas jumlah clusternya?",
-                    "Bagaimana estimasi parameter premis Gaussian dan konsekuen linear dilakukan menggunakan metode Hybrid Learning (Regularized LSE dan Gradient Descent) agar model lebih representatif?",
-                    "Bagaimana performa model fuzzy yang dihasilkan dibandingkan dengan model pra-estimasi serta baseline konvensional (Persistence dan Regresi Linear OLS)?",
+                    "Bagaimana membangun model *fuzzy* Takagi-Sugeno Orde-1 untuk memprediksi skor dan kategori ISPU hari berikutnya (ISPU(*t*+1)) di DKI Jakarta dari 6 parameter polutan harian?",
+                    "Bagaimana proses pembentukan kelompok data polusi udara DKI Jakarta secara objektif menggunakan metode *clustering* *Fuzzy C-Means* (FCM) dan bagaimana validitas jumlah *cluster*-nya?",
+                    "Bagaimana estimasi parameter premis Gaussian dan konsekuen linear dilakukan menggunakan metode *Hybrid Learning* (*Regularized* LSE dan *Gradient Descent*) agar model lebih representatif?",
+                    "Bagaimana performa model *fuzzy* yang dihasilkan dibandingkan dengan model pra-estimasi serta *baseline* konvensional (*Persistence* dan Regresi Linear OLS)?",
                 ]},
-                {"h2": "2.3 Tujuan Studi Kasus"},
-                {"ul": [
-                    "Membangun sistem prediksi dini berbasis logika fuzzy Takagi-Sugeno Orde-1 untuk memprediksi nilai kontinu dan kategori mutu udara ISPU(t+1) DKI Jakarta.",
-                    "Menerapkan algoritma Fuzzy C-Means (FCM) disertai evaluasi Partition Coefficient (PC), Partition Entropy (PE), dan Xie-Beni Index (XB) guna memperoleh struktur cluster data yang objektif.",
-                    "Melakukan estimasi parameter premis dan konsekuen fuzzy secara sistematis melalui studi ablasi 3 tahap (Pra-estimasi Orde-0, Regularized LSE, dan Hybrid Learning).",
-                    "Mengimplementasikan keseluruhan model dalam modul Python teruji, notebook Google Colab interaktif, serta aplikasi GUI berbasis Streamlit.",
+                {"h2": "1.3 Tujuan Studi Kasus"},
+                {"p": "Sejalan dengan rumusan masalah, tujuan penelitian ini adalah sebagai berikut."},
+                {"ol": [
+                    "Membangun sistem prediksi dini berbasis logika *fuzzy* Takagi-Sugeno Orde-1 untuk memprediksi nilai kontinu dan kategori mutu udara ISPU(*t*+1) DKI Jakarta.",
+                    "Menerapkan algoritma *Fuzzy C-Means* (FCM) disertai evaluasi *Partition Coefficient* (PC), *Partition Entropy* (PE), dan *Xie-Beni Index* (XB) guna memperoleh struktur *cluster* data yang objektif.",
+                    "Melakukan estimasi parameter premis dan konsekuen *fuzzy* secara sistematis melalui studi ablasi 3 tahap (pra-estimasi Orde-0, *Regularized* LSE, dan *Hybrid Learning*).",
+                    "Mengimplementasikan keseluruhan model dalam modul Python teruji, *notebook* Google Colab interaktif, serta antarmuka grafis (GUI) berbasis Streamlit.",
                 ]},
             ],
         },
         {
             "type": "chapter",
-            "heading": "3. TINJAUAN PUSTAKA",
+            "heading": "BAB 2. TINJAUAN PUSTAKA",
             "blocks": [
-                {"h2": "3.1 Konsep Dasar Logika Fuzzy"},
+                {"h2": "2.1 Konsep Dasar Logika Fuzzy"},
                 {"p": (
-                    "Logika fuzzy pertama kali diperkenalkan oleh Lotfi A. Zadeh (1965) [1] sebagai perluasan dari teori himpunan klasik (crisp set). "
-                    "Jika himpunan klasik hanya mengenal keanggotaan biner {0, 1}, maka himpunan fuzzy A pada semesta pembicaraan X didefinisikan melalui "
-                    "fungsi keanggotaan μ_A(x) ∈ [0, 1] yang menyatakan derajat kebenaran keanggotaan suatu nilai x terhadap himpunan A. "
-                    "Konsep ini memungkinkan representasi variabel linguistik (seperti Polusi Rendah atau Polusi Tinggi) secara matematis."
+                    "Logika *fuzzy* pertama kali diperkenalkan oleh Lotfi A. Zadeh (1965) sebagai perluasan dari teori himpunan klasik (*crisp set*). "
+                    "Jika himpunan klasik hanya mengenal keanggotaan biner {0, 1}, maka himpunan *fuzzy* *Ã* pada semesta pembicaraan *U* didefinisikan melalui "
+                    "fungsi keanggotaan *μ_Ã*(*x*) ∈ [0, 1] yang menyatakan derajat kebenaran keanggotaan suatu nilai *x* terhadap himpunan *Ã* (Zadeh, 1965):"
                 )},
+                {"eq": {"text": "Ã = { (x, μ_Ã(x)) | x ∈ U }", "html": "<i>Ã</i> = { (<i>x</i>, <i>μ<sub>Ã</sub></i>(<i>x</i>)) | <i>x</i> ∈ <i>U</i> }"}},
                 {"p": (
-                    "Pada penelitian ini digunakan fungsi keanggotaan Gaussian untuk setiap variabel masukan j ∈ {1,...,D} pada aturan ke-i:"
+                    "Konsep ini memungkinkan representasi variabel linguistik, misalnya Polusi Rendah dan Polusi Tinggi, secara matematis. "
+                    "Pada penelitian ini digunakan fungsi keanggotaan Gaussian untuk setiap variabel masukan *j* ∈ {1, ..., *D*} pada aturan ke-*i*:"
                 )},
-                {"eq": "μ_ij(x_j) = exp( - (x_j - v_ij)^2 / (2 * σ_ij^2) )"},
+                {
+                    "eq": {
+                        "text": "μ_ij(x_j) = exp( -(x_j - v_ij)^2 / (2 * σ_ij^2) )",
+                        "html": "<i>μ<sub>ij</sub></i>(<i>x<sub>j</sub></i>) = exp( −(<i>x<sub>j</sub></i> − <i>v<sub>ij</sub></i>)<sup>2</sup> / (2<i>σ<sub>ij</sub></i><sup>2</sup>) )",
+                    }
+                },
                 {"p": (
-                    "di mana v_ij menyatakan pusat fungsi keanggotaan dan σ_ij menyatakan lebar (simpangan baku) kurva. "
-                    "Operasi logika AND antar-anteseden pada satu aturan menggunakan T-norm perkalian aljabar (product operator) untuk menghasilkan "
-                    "kekuatan penyulutan (firing strength) w_i(x) = ∏_{j=1}^D μ_ij(x_j), yang kemudian dinormalisasi menjadi w̄_i(x) = w_i(x) / ∑_{r=1}^c w_r(x). "
-                    "Inferensi agregat mengubah himpunan hasil aturan menjadi nilai keluaran numerik tunggal (defuzzifikasi)."
+                    "di mana *v_ij* menyatakan pusat fungsi keanggotaan dan *σ_ij* menyatakan lebar (simpangan baku) kurva. "
+                    "Operasi logika AND antar-anteseden pada satu aturan menggunakan T-norm perkalian aljabar (*product operator*) untuk menghasilkan "
+                    "kekuatan penyulutan (*firing strength*) *w_i*(**x**) = ∏ *μ_ij*(*x_j*), yang kemudian dinormalisasi menjadi *w̄_i*(**x**) = *w_i*(**x**) / ∑ *w_r*(**x**). "
+                    "Inferensi agregat mengubah himpunan hasil aturan menjadi nilai keluaran numerik tunggal melalui defuzzifikasi."
                 )},
-                {"h2": "3.2 Model Fuzzy Takagi-Sugeno Orde-1"},
+                {"h2": "2.2 Model Fuzzy Takagi-Sugeno Orde-1"},
                 {"p": (
-                    "Model fuzzy Takagi-Sugeno (TSK) diperkenalkan oleh Takagi dan Sugeno (1985) [2]. Berbeda dengan model Mamdani yang menggunakan himpunan fuzzy pada bagian konsekuen, "
-                    "model Takagi-Sugeno Orde-1 menggunakan fungsi linear dari variabel masukan sebagai konsekuen setiap aturan:"
+                    "Model *fuzzy* Takagi-Sugeno (TSK) diperkenalkan oleh Takagi dan Sugeno (1985). Berbeda dengan model Mamdani yang menggunakan himpunan *fuzzy* pada bagian konsekuen, "
+                    "model Takagi-Sugeno Orde-1 menggunakan fungsi linear dari variabel masukan sebagai konsekuen setiap aturan (Takagi & Sugeno, 1985):"
                 )},
-                {"eq": "Aturan i: IF x_1 is A_i1 AND ... AND x_D is A_iD  THEN  f_i(x) = p_i0 + p_i1*x_1 + ... + p_iD*x_D"},
+                {
+                    "eq": {
+                        "text": "Aturan i: IF x_1 is A_i1 AND ... AND x_D is A_iD THEN f_i(x) = p_i0 + p_i1 x_1 + ... + p_iD x_D",
+                        "html": "Aturan <i>i</i>: IF <i>x</i><sub>1</sub> is <i>A</i><sub><i>i</i>1</sub> AND ... AND <i>x<sub>D</sub></i> is <i>A<sub>iD</sub></i> THEN <i>f<sub>i</sub></i>(<b>x</b>) = <i>p</i><sub><i>i</i>0</sub> + <i>p</i><sub><i>i</i>1</sub><i>x</i><sub>1</sub> + ... + <i>p<sub>iD</sub>x<sub>D</sub></i>",
+                    }
+                },
                 {"p": (
-                    "Keluaran akhir sistem diperoleh melalui defuzzifikasi rata-rata terbobot (weighted average): "
-                    "ŷ(x) = ∑_{i=1}^c w̄_i(x) * f_i(x). Kelebihan utama model Takagi-Sugeno Orde-1 adalah efisiensi komputasi karena tidak memerlukan proses defuzzifikasi integral "
-                    "yang mahal, fleksibilitas tinggi dalam memodelkan sistem non-linear kompleks melalui interpolasi mulus antar-bidang linear lokal, serta kompatibilitas langsung "
-                    "dengan metode estimasi parameter berbasis aljabar linear (Least Squares Estimation) dan optimasi gradien [2], [5]."
+                    "Keluaran akhir sistem diperoleh melalui defuzzifikasi rata-rata terbobot (*weighted average*), yaitu *ŷ*(**x**) = ∑ *w̄_i*(**x**) · *f_i*(**x**). "
+                    "Kelebihan utama model Takagi-Sugeno Orde-1 adalah efisiensi komputasi karena tidak memerlukan proses defuzzifikasi integral yang berat, "
+                    "fleksibilitas tinggi dalam memodelkan sistem non-linear kompleks melalui interpolasi mulus antar-bidang linear lokal, serta kompatibilitas langsung "
+                    "dengan metode estimasi parameter berbasis aljabar linear (*Least Squares Estimation*) dan optimasi gradien (Takagi & Sugeno, 1985; Jang, 1993)."
                 )},
-                {"h2": "3.3 Clustering Fuzzy (Fuzzy C-Means)"},
+                {"h2": "2.3 Clustering Fuzzy (Fuzzy C-Means)"},
                 {"p": (
-                    "Clustering adalah teknik pembelajaran tak terawasi (unsupervised learning) untuk mengelompokkan data ke dalam cluster berdasarkan kemiripan fitur. "
-                    "Pada hard clustering (seperti K-Means), setiap titik data dimiliki secara eksklusif oleh satu cluster saja. Sebaliknya, pada fuzzy clustering yang dirumuskan oleh "
-                    "Bezdek (1981) melalui algoritma Fuzzy C-Means (FCM) [3], setiap titik data x_k memiliki derajat keanggotaan u_ik ∈ [0, 1] terhadap setiap cluster i dengan kendala partisi ∑_{i=1}^c u_ik = 1."
+                    "*Clustering* adalah teknik pembelajaran tak terawasi (*unsupervised learning*) untuk mengelompokkan data ke dalam *cluster* berdasarkan kemiripan fitur. "
+                    "Pada *hard clustering*, setiap titik data dimiliki secara eksklusif oleh satu *cluster* saja. Sebaliknya, pada *fuzzy clustering* yang dirumuskan oleh "
+                    "Bezdek (1981) melalui algoritma *Fuzzy C-Means* (FCM), setiap titik data **x**_k memiliki derajat keanggotaan *u_ik* ∈ [0, 1] terhadap setiap *cluster* *i* "
+                    "dengan kendala partisi ∑ *u_ik* = 1. Algoritma FCM meminimalkan fungsi objektif berbobot berikut (Bezdek, 1981):"
                 )},
-                {"p": "Algoritma FCM meminimalkan fungsi objektif berbobot berikut:"},
-                {"eq": "J_m(U, V) = ∑_{k=1}^N ∑_{i=1}^c (u_ik)^m * ||x_k - v_i||_2^2 ,   dengan m = 2.0"},
-                {"p": "Pembaruan derajat keanggotaan u_ik dan pusat cluster v_i pada setiap iterasi dihitung melalui:"},
-                {"eq": "u_ik = 1 / ∑_{r=1}^c ( ||x_k - v_i||_2 / ||x_k - v_r||_2 )^(2/(m-1)) ,    v_i = ( ∑_{k=1}^N (u_ik)^m x_k ) / ( ∑_{k=1}^N (u_ik)^m )"},
+                {
+                    "eq": {
+                        "text": "J_m(U, V) = ∑_{k=1}^N ∑_{i=1}^c (u_ik)^m ||x_k - v_i||_2^2 ,   m = 2,0",
+                        "html": "<i>J<sub>m</sub></i>(<i>U</i>, <i>V</i>) = ∑<sub><i>k</i>=1</sub><sup><i>N</i></sup> ∑<sub><i>i</i>=1</sub><sup><i>c</i></sup> (<i>u<sub>ik</sub></i>)<sup><i>m</i></sup> ‖<b>x</b><sub><i>k</i></sub> − <b>v</b><sub><i>i</i></sub>‖<sub>2</sub><sup>2</sup> ,   <i>m</i> = 2,0",
+                    }
+                },
+                {"p": "Pembaruan derajat keanggotaan *u_ik* dan pusat *cluster* **v**_i pada setiap iterasi dihitung melalui persamaan berikut (Bezdek, 1981):"},
+                {
+                    "eq": {
+                        "text": "u_ik = 1 / ∑_{r=1}^c ( ||x_k - v_i||_2 / ||x_k - v_r||_2 )^(2/(m-1)) ,   v_i = ( ∑_{k=1}^N (u_ik)^m x_k ) / ( ∑_{k=1}^N (u_ik)^m )",
+                        "html": "<i>u<sub>ik</sub></i> = 1 / ∑<sub><i>r</i>=1</sub><sup><i>c</i></sup> (‖<b>x</b><sub><i>k</i></sub> − <b>v</b><sub><i>i</i></sub>‖<sub>2</sub> / ‖<b>x</b><sub><i>k</i></sub> − <b>v</b><sub><i>r</i></sub>‖<sub>2</sub>)<sup>2/(<i>m</i>−1)</sup> ,   <b>v</b><sub><i>i</i></sub> = ∑<sub><i>k</i>=1</sub><sup><i>N</i></sup> (<i>u<sub>ik</sub></i>)<sup><i>m</i></sup> <b>x</b><sub><i>k</i></sub> / ∑<sub><i>k</i>=1</sub><sup><i>N</i></sup> (<i>u<sub>ik</sub></i>)<sup><i>m</i></sup>",
+                    }
+                },
                 {"p": (
-                    "Proses iterasi dihentikan apabila kriteria konvergensi ||U^(t) - U^(t-1)||_∞ < 10^-5 terpenuhi. "
-                    "Untuk menilai kualitas partisi secara objektif digunakan tiga indeks validitas: Partition Coefficient (PC = (1/N)∑∑ u_ik^2, lebih tinggi lebih baik), "
-                    "Partition Entropy (PE = -(1/N)∑∑ u_ik ln u_ik, lebih rendah lebih baik), serta Xie-Beni Index (XB) [4] yang membandingkan kekompakan intra-cluster terhadap jarak minimum antar-pusat cluster (lebih rendah lebih baik)."
+                    "Proses iterasi dihentikan apabila kriteria konvergensi ||*U*^(t) − *U*^(t−1)||_∞ < 10^−5 terpenuhi. Untuk menilai kualitas partisi secara objektif digunakan tiga indeks validitas: "
+                    "*Partition Coefficient* (PC = (1/*N*)∑∑ *u_ik*^2, lebih tinggi lebih baik), *Partition Entropy* (PE = −(1/*N*)∑∑ *u_ik* ln *u_ik*, lebih rendah lebih baik), serta "
+                    "*Xie-Beni Index* (XB) yang membandingkan kekompakan *intra-cluster* terhadap jarak minimum antar-pusat *cluster* (Xie & Beni, 1991)."
                 )},
-                {"h2": "3.4 Estimasi Parameter dengan Hybrid Learning"},
+                {"h2": "2.4 Estimasi Parameter dengan Hybrid Learning"},
                 {"p": (
-                    "Dalam kerangka ANFIS/Takagi-Sugeno adaptif yang diperkenalkan Jang (1993) [5], setiap lintasan pelatihan Hybrid Learning terbagi menjadi dua fase dalam satu epoch: "
-                    "(1) Forward Pass, di mana parameter premis (v_ij, σ_ij) dianggap tetap sehingga keluaran prediksi menjadi linear terhadap vektor parameter konsekuen θ = [p_i0, ..., p_iD]. "
-                    "Untuk mencegah multikolinearitas dan overfitting pada data nyata, digunakan Regularized Least Squares Estimation (Ridge LSE): θ̂ = (A^T A + λI)^(-1) A^T y; "
-                    "(2) Backward Pass, di mana parameter konsekuen θ dianggap tetap dan kesalahan prediksi dirambatkan balik menggunakan Gradient Descent untuk memperbarui v_ij dan log(σ_ij). "
-                    "Berbagai studi terkini (mis. Karki, 2023 [6]) juga menunjukkan efektivitas integrasi model neuro-fuzzy adaptif dalam memprediksi indeks kualitas udara perkotaan."
+                    "Dalam kerangka ANFIS/Takagi-Sugeno adaptif yang diperkenalkan Jang (1993), setiap *epoch* pelatihan *Hybrid Learning* terbagi menjadi dua fase. "
+                    "Pertama, *forward pass*, di mana parameter premis (*v_ij*, *σ_ij*) dianggap tetap sehingga keluaran prediksi menjadi linear terhadap vektor parameter konsekuen **θ**. "
+                    "Untuk mencegah multikolinearitas dan *overfitting* pada data nyata, digunakan *Regularized Least Squares Estimation* (*Ridge* LSE): **θ̂** = (**A**^T **A** + *λ***I**)^(−1) **A**^T **y**. "
+                    "Kedua, *backward pass*, di mana parameter konsekuen **θ** dianggap tetap dan kesalahan prediksi dirambatkan balik menggunakan *Gradient Descent* untuk memperbarui *v_ij* dan log(*σ_ij*) (Jang, 1993). "
+                    "Studi terkini oleh Karki (2023) juga mengonfirmasi bahwa penyetelan parameter berbasis neuro-fuzzy adaptif efektif memodelkan dinamika non-linear indeks kualitas udara perkotaan."
                 )},
             ],
         },
         {
             "type": "chapter",
-            "heading": "4. METODOLOGI",
+            "heading": "BAB 3. METODOLOGI",
             "blocks": [
-                {"h2": "4.1 Sumber dan Prapemrosesan Dataset"},
+                {"h2": "3.1 Sumber dan Prapemrosesan Dataset"},
                 {"p": (
                     f"Penelitian ini menggunakan data historis nyata Indeks Standar Pencemar Udara (ISPU) Provinsi DKI Jakarta tahun 2021 yang bersumber dari "
-                    f"Dinas Lingkungan Hidup Provinsi DKI Jakarta (Portal Satu Data Jakarta) [7] untuk lima stasiun SPKU: {', '.join(cs['stations'])}. "
-                    f"Dari total {cs['raw_rows']} baris observasi mentah selama 12 bulan (1 Januari – 31 Desember 2021), dilakukan perbaikan pergeseran header pada berkas resmi bulan Juni dan Juli 2021, "
-                    f"penghapusan {cs['dropped_invalid_or_missing']} baris dengan nilai kosong/tidak terbaca sensor (terutama awal Januari sebelum sensor PM2.5 beroperasi penuh di semua SPKU), "
-                    f"sehingga diperoleh {cs['clean_rows']} baris bersih."
+                    f"Dinas Lingkungan Hidup Provinsi DKI Jakarta pada Portal Satu Data Jakarta untuk lima stasiun SPKU: {', '.join(cs['stations'])} "
+                    f"(Dinas Lingkungan Hidup Provinsi DKI Jakarta, 2021). Dari total {fmt_int_id(cs['raw_rows'])} baris observasi mentah selama 12 bulan (1 Januari–31 Desember 2021), "
+                    f"dilakukan perbaikan pergeseran *header* pada berkas resmi bulan Juni dan Juli 2021 serta penghapusan {fmt_int_id(cs['dropped_invalid_or_missing'])} baris dengan nilai kosong "
+                    f"(terutama awal Januari sebelum sensor PM2.5 beroperasi penuh), sehingga diperoleh {fmt_int_id(cs['clean_rows'])} baris bersih."
                 )},
                 {"p": (
-                    f"Selanjutnya, untuk membentuk masalah prediksi hari berikutnya (t -> t+1) yang bebas kebocoran data (zero data leakage), setiap observasi hari ke-t dipasangkan dengan "
-                    f"nilai ISPU maksimum hari ke-(t+1) secara ketat di dalam stasiun yang sama dan hanya apabila selisih tanggal tepat 1 hari. Proses ini menghasilkan {res['n_paired']} pasangan data berurutan. "
-                    f"Data dibagi secara kronologis (time-series split) tanpa pengacakan menjadi Data Latih ({sb['n_train']} data, {sb['train_start']} s.d. {sb['train_end']}), "
-                    f"Data Validasi ({sb['n_val']} data, {sb['val_start']} s.d. {sb['val_end']}), dan Data Uji ({sb['n_test']} data, {sb['test_start']} s.d. {sb['test_end']}). "
-                    f"Normalisasi Z-score dihitung hanya dari statistik Data Latih."
+                    f"Selanjutnya, untuk membentuk masalah prediksi hari berikutnya (*t* → *t*+1) yang bebas kebocoran data (*zero data leakage*), setiap observasi hari ke-*t* dipasangkan dengan "
+                    f"nilai ISPU maksimum hari ke-(*t*+1) secara ketat di dalam stasiun yang sama dan hanya apabila selisih tanggal tepat 1 hari. Proses ini menghasilkan {fmt_int_id(res['n_paired'])} pasangan data berurutan. "
+                    f"Data dibagi secara kronologis (*time-series split*) tanpa pengacakan menjadi Data Latih ({fmt_int_id(sb['n_train'])} data, {sb['train_start']} s.d. {sb['train_end']}), "
+                    f"Data Validasi ({fmt_int_id(sb['n_val'])} data, {sb['val_start']} s.d. {sb['val_end']}), dan Data Uji ({fmt_int_id(sb['n_test'])} data, {sb['test_start']} s.d. {sb['test_end']}). "
+                    f"Normalisasi *Z-score* dihitung hanya dari statistik Data Latih."
                 )},
-                {"h2": "4.2 Perancangan Sistem Fuzzy"},
-                {"p": "Rancangan arsitektur sistem prediksi dini ISPU meliputi:"},
-                {"ul": [
-                    "Input Sistem: Vektor 6 sub-indeks polutan harian pada hari ke-t, yaitu x_t = [PM10, PM2.5, SO2, CO, O3, NO2]_t.",
-                    "Output Sistem: Prediksi skor kontinu ISPU hari berikutnya ŷ_{t+1} beserta pemetaan kategori mutu udara resmi Permen LHK No. P.14/2020 [7]: Baik (0–50), Sedang (51–100), Tidak Sehat (101–200), Sangat Tidak Sehat (201–300), dan Berbahaya (>300).",
-                    f"Basis Aturan (Rule Base): Dibentuk otomatis sebanyak c* = {c_opt} aturan fuzzy Takagi-Sugeno Orde-1 dari hasil partisi FCM. Contoh representasi aturan linguistik:",
+                {"h2": "3.2 Perancangan Sistem Fuzzy"},
+                {"p": "Rancangan arsitektur sistem prediksi dini ISPU meliputi komponen berikut."},
+                {"ol": [
+                    "*Input* Sistem: Vektor 6 sub-indeks polutan harian pada hari ke-*t*, yaitu **x**_t = [PM10, PM2.5, SO2, CO, O3, NO2]_t.",
+                    "*Output* Sistem: Prediksi skor kontinu ISPU hari berikutnya *ŷ*_{t+1} beserta pemetaan kategori mutu udara resmi Permen LHK No. P.14/2020 (KLHK, 2020): Baik (0–50), Sedang (51–100), Tidak Sehat (101–200), Sangat Tidak Sehat (201–300), dan Berbahaya (>300).",
+                    f"Basis Aturan (*Rule Base*): Dibentuk otomatis sebanyak *c* = {c_opt} aturan *fuzzy* Takagi-Sugeno Orde-1 dari hasil partisi FCM dengan representasi sebagai berikut:",
                 ]},
-                {"eq": (
-                    "R1: IF PM10 Rendah AND PM2.5 Rendah AND SO2 Rendah AND CO Rendah AND O3 Rendah AND NO2 Rendah THEN f1(x) = p10 + sum(p1j * xj)\n"
-                    "R2: IF PM10 Tinggi AND PM2.5 Tinggi AND SO2 Tinggi AND CO Tinggi AND O3 Tinggi AND NO2 Tinggi THEN f2(x) = p20 + sum(p2j * xj)"
-                )},
-                {"h2": "4.3 Rancangan Evaluasi dan Studi Ablasi"},
+                {
+                    "eq": {
+                        "text": "R1: IF PM10 Rendah AND PM2.5 Rendah AND SO2 Rendah AND CO Rendah AND O3 Rendah AND NO2 Rendah THEN f1(x) = p10 + sum(p1j xj)\nR2: IF PM10 Tinggi AND PM2.5 Tinggi AND SO2 Tinggi AND CO Tinggi AND O3 Tinggi AND NO2 Tinggi THEN f2(x) = p20 + sum(p2j xj)",
+                        "html": "R1: IF PM10 Rendah AND PM2.5 Rendah AND SO2 Rendah AND CO Rendah AND O3 Rendah AND NO2 Rendah THEN <i>f</i><sub>1</sub>(<b>x</b>) = <i>p</i><sub>10</sub> + ∑ <i>p</i><sub>1<i>j</i></sub><i>x<sub>j</sub></i><br/>R2: IF PM10 Tinggi AND PM2.5 Tinggi AND SO2 Tinggi AND CO Tinggi AND O3 Tinggi AND NO2 Tinggi THEN <i>f</i><sub>2</sub>(<b>x</b>) = <i>p</i><sub>20</sub> + ∑ <i>p</i><sub>2<i>j</i></sub><i>x<sub>j</sub></i>",
+                    }
+                },
+                {"h2": "3.3 Rancangan Evaluasi dan Studi Ablasi"},
                 {"p": (
-                    "Untuk membuktikan kontribusi setiap komponen secara ilmiah, performa model dievaluasi dengan metrik RMSE, MAE, R², MAPE, Akurasi Kategori, dan Akurasi ±1 Kategori melalui perbandingan 5 skenario: "
-                    "(1) Persistence Baseline (ŷ_{t+1} = ISPU_t), (2) Regresi Linear Berganda (OLS), (3) Tahap 0: FCM + Sugeno Orde-0 (tanpa estimasi konsekuen linear), "
-                    "(4) Tahap 1: FCM + Takagi-Sugeno Orde-1 + Regularized LSE, serta (5) Tahap 2: FCM + Takagi-Sugeno Orde-1 + Hybrid Learning (LSE + Gradient Descent)."
+                    "Untuk membuktikan kontribusi setiap komponen secara ilmiah, performa model dievaluasi dengan metrik RMSE, MAE, R², MAPE, Akurasi Kategori, dan Akurasi ±1 Kategori melalui perbandingan lima skenario: "
+                    "(1) *Persistence Baseline* (*ŷ*_{t+1} = ISPU_t), (2) Regresi Linear Berganda (OLS), (3) Tahap 0: FCM + Sugeno Orde-0 (tanpa estimasi konsekuen linear), "
+                    "(4) Tahap 1: FCM + Takagi-Sugeno Orde-1 + *Regularized* LSE, serta (5) Tahap 2: FCM + Takagi-Sugeno Orde-1 + *Hybrid Learning* (LSE + *Gradient Descent*)."
                 )},
             ],
         },
         {
             "type": "chapter",
-            "heading": "5. PEMBAHASAN DAN HASIL",
+            "heading": "BAB 4. PEMBAHASAN DAN HASIL",
             "blocks": [
-                {"h2": "5.1 Karakteristik Dataset ISPU DKI Jakarta"},
+                {"h2": "4.1 Karakteristik Dataset ISPU DKI Jakarta"},
                 {"p": (
-                    f"Tabel 5.1 merangkum statistik deskriptif dari {res['n_paired']} pasangan observasi harian DKI Jakarta. Polutan PM2.5 memiliki rata-rata sub-indeks tertinggi "
-                    f"({fmt_num(ds['pm25']['mean'])} ± {fmt_num(ds['pm25']['std'])}), diikuti PM10 ({fmt_num(ds['pm10']['mean'])}). Distribusi komposisi kategori target menunjukkan dominasi "
-                    f"kategori Sedang ({res['target_category_counts'].get('SEDANG', 0)} hari / 75.8%), diikuti Tidak Sehat ({res['target_category_counts'].get('TIDAK SEHAT', 0)} hari / 15.9%) dan Baik ({res['target_category_counts'].get('BAIK', 0)} hari / 8.2%)."
+                    f"Tabel 4.1 merangkum statistik deskriptif dari {fmt_int_id(res['n_paired'])} pasangan observasi harian DKI Jakarta. Polutan PM2.5 memiliki rata-rata sub-indeks tertinggi "
+                    f"({fmt_id(ds['pm25']['mean'])} ± {fmt_id(ds['pm25']['std'])}), diikuti PM10 ({fmt_id(ds['pm10']['mean'])}). Distribusi komposisi kategori target menunjukkan dominasi "
+                    f"kategori Sedang ({fmt_int_id(sedang_n)} hari atau 75,8%), diikuti Tidak Sehat ({fmt_int_id(ts_n)} hari atau 15,9%) dan Baik ({fmt_int_id(baik_n)} hari atau 8,2%), seperti terlihat pada Gambar 4.1."
                 )},
-                {"table": {"caption": "Tabel 5.1 Statistik Deskriptif Variabel Input dan Target (N = 1.444)", "headers": ["Variabel", "N", "Rata-rata", "Std Dev", "Min", "Median", "Maks"], "rows": desc_rows}},
-                {"fig": {"path": str(ART_DIR / "figures" / "fig1_data_distribution.png"), "caption": "Gambar 5.1 Distribusi sub-indeks 6 polutan dan komposisi kategori target ISPU(t+1)."}},
-                {"h2": "5.2 Penentuan Jumlah Cluster Optimal dan Hasil Fuzzy C-Means"},
+                {"table": {"label": "Tabel 4.1", "caption": "Statistik deskriptif variabel input dan target (N = 1.444)", "headers": ["Variabel", "N", "Rata-rata", "Std Dev", "Min", "Median", "Maks"], "rows": desc_rows}},
+                {"fig": {"path": str(ART_DIR / "figures" / "fig1_data_distribution.png"), "label": "Gambar 4.1", "caption": "Distribusi sub-indeks 6 polutan dan komposisi kategori target ISPU(t+1)."}},
+                {"h2": "4.2 Penentuan Jumlah Cluster Optimal dan Hasil Fuzzy C-Means"},
                 {"p": (
-                    f"Eksperimen sapuan jumlah cluster c ∈ {{2, 3, 4, 5, 6}} pada Data Latih (Tabel 5.2) menunjukkan bahwa nilai Partition Coefficient (PC) tertinggi ({fmt_num(res['sweep_results'][0]['pc'], 4)}), "
-                    f"Partition Entropy (PE) terendah ({fmt_num(res['sweep_results'][0]['pe'], 4)}), serta kesalahan validasi LSE terendah (Val RMSE = {fmt_num(res['sweep_results'][0]['lse_val_rmse'], 4)}) "
-                    f"dicapai pada c* = {c_opt}. Penyempurnaan parameter regularisasi Ridge melalui Validation RMSE Hybrid Learning selanjutnya memilih λ* = {lam_opt:.1f} (Val RMSE = {fmt_num(val_m_s2['rmse'], 4)})."
+                    f"Eksperimen sapuan jumlah *cluster* *c* ∈ {{2, 3, 4, 5, 6}} pada Data Latih (Tabel 4.2) menunjukkan bahwa nilai *Partition Coefficient* (PC) tertinggi ({fmt_id(res['sweep_results'][0]['pc'], 4)}), "
+                    f"*Partition Entropy* (PE) terendah ({fmt_id(res['sweep_results'][0]['pe'], 4)}), serta kesalahan validasi LSE terendah (Val RMSE = {fmt_id(res['sweep_results'][0]['lse_val_rmse'], 4)}) "
+                    f"dicapai pada *c* = {c_opt} (Gambar 4.2). Penyempurnaan parameter regularisasi *Ridge* melalui *Validation RMSE* *Hybrid Learning* selanjutnya memilih *λ* = {fmt_id(lam_opt, 1)} (Val RMSE = {fmt_id(val_m_s2['rmse'], 4)})."
                 )},
-                {"table": {"caption": "Tabel 5.2 Hasil Evaluasi Validitas Cluster FCM dan Validasi RMSE", "headers": ["c", "PC", "PE", "Xie-Beni (XB)", "J_m", "Iterasi", "λ LSE", "Val RMSE"], "rows": sweep_rows}},
-                {"fig": {"path": str(ART_DIR / "figures" / "fig2_cluster_selection.png"), "caption": "Gambar 5.2 Kurva validitas partisi FCM (PC, XB, Val RMSE) dan konvergensi fungsi objektif J_m."}},
+                {"table": {"label": "Tabel 4.2", "caption": "Hasil evaluasi validitas cluster FCM dan validasi RMSE", "headers": ["c", "PC", "PE", "Xie-Beni (XB)", "J_m", "Iterasi", "λ LSE", "Val RMSE"], "rows": sweep_rows}},
+                {"fig": {"path": str(ART_DIR / "figures" / "fig2_cluster_selection.png"), "label": "Gambar 4.2", "caption": "Kurva validitas partisi FCM (PC, XB, Val RMSE) dan konvergensi fungsi objektif J_m."}},
                 {"p": (
-                    f"Pada c* = {c_opt}, FCM konvergen dalam {art['fcm']['n_iter']} iterasi menghasilkan dua pusat cluster terurut yang sangat interpretatif (Tabel 5.3): "
-                    f"{cluster_labels[0]} (485 hari latih, rata-rata target ISPU berikutnya {fmt_num(res['cluster_summary'][0]['mean_target_ispu'])}) dan "
-                    f"{cluster_labels[1]} (580 hari latih, rata-rata target ISPU berikutnya {fmt_num(res['cluster_summary'][1]['mean_target_ispu'])}). "
-                    f"Tabel 5.4 memperlihatkan contoh derajat keanggotaan fuzzy u_ik pada lima observasi awal di mana jumlah derajat keanggotaan setiap baris selalu bernilai 1.0000."
+                    f"Pada *c* = {c_opt}, FCM konvergen dalam {art['fcm']['n_iter']} iterasi menghasilkan dua pusat *cluster* terurut yang interpretatif (Tabel 4.3): "
+                    f"{cluster_labels[0]} (485 hari latih, rata-rata target ISPU berikutnya {fmt_id(res['cluster_summary'][0]['mean_target_ispu'])}) dan "
+                    f"{cluster_labels[1]} (580 hari latih, rata-rata target ISPU berikutnya {fmt_id(res['cluster_summary'][1]['mean_target_ispu'])}). "
+                    f"Tabel 4.4 memperlihatkan contoh derajat keanggotaan *fuzzy* *u_ik* pada lima observasi awal, sedangkan proyeksi PCA 2D ditampilkan pada Gambar 4.3."
                 )},
-                {"table": {"caption": "Tabel 5.3 Pusat Cluster FCM dalam Skala Sub-Indeks ISPU Asli", "headers": ["Cluster", "N", "PM10", "PM2.5", "SO2", "CO", "O3", "NO2", "Rata2 ISPU(t+1)"], "rows": cluster_prof_rows}},
-                {"table": {"caption": "Tabel 5.4 Contoh Matriks Derajat Keanggotaan FCM (u_ik)", "headers": ["Tanggal", "Stasiun", "PM10 / PM2.5", "u_C1", "u_C2", "Dominan"], "rows": sample_u_rows}},
-                {"fig": {"path": str(ART_DIR / "figures" / "fig3_fcm_clusters_pca.png"), "caption": "Gambar 5.3 Proyeksi PCA 2D hasil clustering FCM dan profil polutan tiap pusat cluster."}},
-                {"h2": "5.3 Hasil Estimasi Parameter Premis dan Konsekuen"},
+                {"table": {"label": "Tabel 4.3", "caption": "Pusat cluster FCM dalam skala sub-indeks ISPU asli", "headers": ["Cluster", "N", "PM10", "PM2.5", "SO2", "CO", "O3", "NO2", "Rata2 ISPU(t+1)"], "rows": cluster_prof_rows}},
+                {"table": {"label": "Tabel 4.4", "caption": "Contoh matriks derajat keanggotaan FCM (u_ik)", "headers": ["Tanggal", "Stasiun", "PM10 / PM2.5", "u_C1", "u_C2", "Dominan"], "rows": sample_u_rows}},
+                {"fig": {"path": str(ART_DIR / "figures" / "fig3_fcm_clusters_pca.png"), "label": "Gambar 4.3", "caption": "Proyeksi PCA 2D hasil clustering FCM dan profil polutan tiap pusat cluster."}},
+                {"h2": "4.3 Hasil Estimasi Parameter Premis dan Konsekuen"},
                 {"p": (
-                    f"Tahap Hybrid Learning dijalankan dengan early stopping berbasis Data Validasi dan mencapai titik terbaik pada epoch ke-{int(best_ep_row['epoch'])} "
-                    f"(Val RMSE = {fmt_num(best_ep_row['val_rmse'], 3)}, Train RMSE = {fmt_num(best_ep_row['train_rmse'], 3)}). "
-                    f"Tabel 5.5 membandingkan parameter Gaussian (pusat v_ij dan lebar σ_ij dalam skala ISPU asli) sebelum dan sesudah optimasi Gradient Descent, "
-                    f"sedangkan Tabel 5.6 menampilkan koefisien konsekuen linear Takagi-Sugeno Orde-1 hasil Regularized LSE."
+                    f"Tahap *Hybrid Learning* dijalankan dengan *early stopping* berbasis Data Validasi dan mencapai titik terbaik pada *epoch* ke-{int(best_ep_row['epoch'])} "
+                    f"(Val RMSE = {fmt_id(best_ep_row['val_rmse'], 3)}, Train RMSE = {fmt_id(best_ep_row['train_rmse'], 3)}). "
+                    f"Tabel 4.5 dan Gambar 4.4 membandingkan parameter Gaussian sebelum dan sesudah optimasi *Gradient Descent*, "
+                    f"sedangkan Tabel 4.6 menampilkan koefisien konsekuen linear Takagi-Sugeno Orde-1 hasil *Regularized* LSE, dengan kurva konvergensi pada Gambar 4.5."
                 )},
-                {"table": {"caption": "Tabel 5.5 Parameter Premis Gaussian Sebelum (FCM Awal) dan Sesudah Hybrid Learning", "headers": ["Aturan", "Polutan", "v Awal", "v Hybrid", "σ Awal", "σ Hybrid"], "rows": prem_rows}},
-                {"fig": {"path": str(ART_DIR / "figures" / "fig4_membership_functions.png"), "caption": "Gambar 5.4 Perbandingan kurva fungsi keanggotaan Gaussian sebelum dan sesudah Hybrid Learning."}},
-                {"table": {"caption": "Tabel 5.6 Koefisien Konsekuen Linear Takagi-Sugeno Orde-1 (Input Terstandarisasi)", "headers": ["Aturan", "Bias p0", "p_PM10", "p_PM2.5", "p_SO2", "p_CO", "p_O3", "p_NO2"], "rows": conseq_rows}},
-                {"fig": {"path": str(ART_DIR / "figures" / "fig5_hybrid_training_curve.png"), "caption": "Gambar 5.5 Kurva konvergensi Train RMSE dan Validation RMSE selama pelatihan Hybrid Learning."}},
-                {"h2": "5.4 Simulasi Inferensi Fuzzy dan Hasil Studi Ablasi"},
-                {"p": "Tabel 5.7 menampilkan penelusuran inferensi langkah demi langkah pada tiga skenario uji nyata (Baik, Sedang, dan Polusi Tinggi). Tabel 5.8 dan 5.9 menyajikan perbandingan performa kuantitatif pada Data Validasi dan Data Uji."},
-                {"table": {"caption": "Tabel 5.7 Simulasi Inferensi Fuzzy TSK-1 pada Tiga Kasus Nyata Test Set", "headers": ["Skenario", "Lokasi & Tgl", "Input Polutan", "Bobot w̄", "Konsekuen f_i", "Prediksi", "Aktual", "Galat"], "rows": scen_rows}},
-                {"table": {"caption": "Tabel 5.8 Hasil Studi Ablasi & Baseline pada Data Validasi (12 Sep – 5 Nov 2021)", "headers": ["Model", "RMSE", "MAE", "R²", "MAPE", "Akurasi Kat.", "Akurasi ±1 Kat."], "rows": build_ablation_rows("val")}},
-                {"table": {"caption": "Tabel 5.9 Hasil Studi Ablasi & Baseline pada Data Uji (6 Nov – 30 Des 2021)", "headers": ["Model", "RMSE", "MAE", "R²", "MAPE", "Akurasi Kat.", "Akurasi ±1 Kat."], "rows": build_ablation_rows("test")}},
-                {"fig": {"path": str(ART_DIR / "figures" / "fig6_ablation_comparison.png"), "caption": "Gambar 5.6 Perbandingan RMSE, MAE, dan R² seluruh model pada studi ablasi Data Uji."}},
-                {"fig": {"path": str(ART_DIR / "figures" / "fig7_actual_vs_predicted.png"), "caption": "Gambar 5.7 Grafik aktual vs prediksi, deret waktu stasiun DKI1, dan matriks kebingungan kategori pada Data Uji."}},
+                {"table": {"label": "Tabel 4.5", "caption": "Parameter premis Gaussian sebelum (FCM awal) dan sesudah Hybrid Learning", "headers": ["Aturan", "Polutan", "v Awal", "v Hybrid", "σ Awal", "σ Hybrid"], "rows": prem_rows}},
+                {"fig": {"path": str(ART_DIR / "figures" / "fig4_membership_functions.png"), "label": "Gambar 4.4", "caption": "Perbandingan kurva fungsi keanggotaan Gaussian sebelum dan sesudah Hybrid Learning."}},
+                {"table": {"label": "Tabel 4.6", "caption": "Koefisien konsekuen linear Takagi-Sugeno Orde-1 (input terstandarisasi)", "headers": ["Aturan", "Bias p0", "p_PM10", "p_PM2.5", "p_SO2", "p_CO", "p_O3", "p_NO2"], "rows": conseq_rows}},
+                {"fig": {"path": str(ART_DIR / "figures" / "fig5_hybrid_training_curve.png"), "label": "Gambar 4.5", "caption": "Kurva konvergensi Train RMSE dan Validation RMSE selama pelatihan Hybrid Learning."}},
+                {"h2": "4.4 Simulasi Inferensi Fuzzy dan Hasil Studi Ablasi"},
+                {"p": "Tabel 4.7 menampilkan penelusuran inferensi langkah demi langkah pada tiga skenario uji nyata (Baik, Sedang, dan Polusi Tinggi). Tabel 4.8 dan Tabel 4.9 menyajikan perbandingan performa kuantitatif pada Data Validasi dan Data Uji, serta visualisasi perbandingan pada Gambar 4.6 dan Gambar 4.7."},
+                {"table": {"label": "Tabel 4.7", "caption": "Simulasi inferensi fuzzy TSK-1 pada tiga kasus nyata Test Set", "headers": ["Skenario", "Lokasi & Tgl", "Input Polutan", "Bobot w̄", "Konsekuen f_i", "Prediksi", "Aktual", "Galat"], "rows": scen_rows}},
+                {"table": {"label": "Tabel 4.8", "caption": "Hasil studi ablasi dan baseline pada Data Validasi (12 Sep–5 Nov 2021)", "headers": ["Model", "RMSE", "MAE", "R²", "MAPE", "Akurasi Kat.", "Akurasi ±1 Kat."], "rows": build_ablation_rows("val")}},
+                {"table": {"label": "Tabel 4.9", "caption": "Hasil studi ablasi dan baseline pada Data Uji (6 Nov–30 Des 2021)", "headers": ["Model", "RMSE", "MAE", "R²", "MAPE", "Akurasi Kat.", "Akurasi ±1 Kat."], "rows": build_ablation_rows("test")}},
+                {"fig": {"path": str(ART_DIR / "figures" / "fig6_ablation_comparison.png"), "label": "Gambar 4.6", "caption": "Perbandingan RMSE, MAE, dan R² seluruh model pada studi ablasi Data Uji."}},
+                {"fig": {"path": str(ART_DIR / "figures" / "fig7_actual_vs_predicted.png"), "label": "Gambar 4.7", "caption": "Grafik aktual vs prediksi, deret waktu stasiun DKI1, dan matriks kebingungan kategori pada Data Uji."}},
             ],
         },
         {
             "type": "chapter",
-            "heading": "6. IMPLEMENTASI PROGRAM",
+            "heading": "BAB 5. IMPLEMENTASI PROGRAM",
             "blocks": [
-                {"h2": "6.1 Arsitektur Kode Python dan Google Colab"},
+                {"h2": "5.1 Arsitektur Kode Python dan Google Colab"},
                 {"p": (
-                    "Seluruh implementasi dibangun menggunakan Python 3.12.6 dengan pustaka NumPy, Pandas, SciPy, Scikit-Learn, Matplotlib, dan Streamlit. "
-                    "Struktur kode dipisahkan secara modular: src/data_loader.py (pembersihan data dan pasangan t -> t+1 bebas kebocoran), "
-                    "src/fcm.py (Fuzzy C-Means dan metrik validitas PC/PE/XB), src/sugeno_hybrid.py (Takagi-Sugeno Orde-1, LSE, dan Hybrid Learning beserta verifikasi gradien numerik), "
-                    "src/evaluation.py (metrik regresi dan pemetaan Permen LHK), serta src/visualization.py."
+                    "Seluruh implementasi dibangun menggunakan Python 3.12.6 dengan pustaka *NumPy*, *Pandas*, *SciPy*, *Scikit-Learn*, *Matplotlib*, dan *Streamlit*. "
+                    "Struktur kode dipisahkan secara modular ke dalam berkas *src/data_loader.py* (pembersihan data dan pasangan *t* → *t*+1 bebas kebocoran), "
+                    "*src/fcm.py* (*Fuzzy C-Means* dan metrik validitas PC/PE/XB), *src/sugeno_hybrid.py* (Takagi-Sugeno Orde-1, LSE, dan *Hybrid Learning* beserta verifikasi gradien numerik), "
+                    "*src/evaluation.py* (metrik regresi dan pemetaan Permen LHK), serta *src/visualization.py*."
                 )},
                 {"code": code_snippet},
-                {"p": f"Notebook interaktif lengkap yang dapat dijalankan ulang satu klik di Google Colab tersedia pada berkas notebooks/ISPU_Fuzzy_FCM_Hybrid.ipynb dan tautan Google Colab berikut: {colab_url}"},
-                {"h2": "6.2 Dokumentasi GUI Interaktif (Streamlit)"},
+                {"p": f"Notebook interaktif lengkap yang dapat dijalankan ulang satu klik di Google Colab tersedia pada berkas notebooks/ISPU_Fuzzy_FCM_Hybrid.ipynb dan tautan berikut: {colab_url}."},
+                {"h2": "5.2 Dokumentasi GUI Interaktif (Streamlit)"},
                 {"p": (
-                    "Sebagai nilai tambah aplikasi pengguna, dibangun GUI web interaktif berbasis Streamlit (app.py) yang memenuhi seluruh kriteria fungsional: "
-                    "(1) menerima input manual 6 parameter polutan maupun preset data nyata Jakarta, (2) menampilkan peta cluster PCA 2D dan derajat keanggotaan FCM, "
-                    "(3) memvisualisasikan kurva fungsi keanggotaan Gaussian lengkap dengan posisi input pengguna, (4) merinci tabel inferensi fuzzy dan kontribusi tiap aturan, serta "
-                    "(5) menyajikan keputusan akhir prediksi skor ISPU(t+1), badge kategori warna Permen LHK, dan rekomendasi mitigasi kesehatan."
+                    "Sebagai antarmuka pengguna aplikasi, dibangun GUI web interaktif berbasis *Streamlit* (*app.py*) yang memenuhi seluruh kriteria fungsional: "
+                    "(1) menerima *input* manual 6 parameter polutan maupun *preset* data nyata Jakarta, (2) menampilkan peta *cluster* PCA 2D dan derajat keanggotaan FCM (Gambar 5.1), "
+                    "(3) memvisualisasikan kurva fungsi keanggotaan Gaussian lengkap dengan posisi *input* pengguna (Gambar 5.2), (4) merinci tabel inferensi *fuzzy* dan kontribusi tiap aturan (Gambar 5.3), serta "
+                    "(5) menyajikan keputusan akhir prediksi skor ISPU(*t*+1), kategori Permen LHK, ringkasan ablasi (Gambar 5.4), dan rekomendasi mitigasi kesehatan."
                 )},
-                {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_overview.png"), "caption": "Gambar 6.1 Tampilan utama GUI Streamlit: input sidebar, kartu keputusan akhir, dan visualisasi clustering FCM."}},
-                {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_mf.png"), "caption": "Gambar 6.2 Tab fungsi keanggotaan Gaussian interaktif dengan garis penanda nilai input pengguna."}},
-                {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_inference.png"), "caption": "Gambar 6.3 Tab rincian inferensi Takagi-Sugeno Orde-1, kontribusi aturan, dan persamaan defuzzifikasi."}},
-                {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_evaluation.png"), "caption": "Gambar 6.4 Tab ringkasan evaluasi studi ablasi dan perbandingan metrik pada Data Uji."}},
+                {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_overview.png"), "label": "Gambar 5.1", "caption": "Tampilan utama GUI Streamlit: input sidebar, kartu keputusan akhir, dan visualisasi clustering FCM."}},
+                {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_mf.png"), "label": "Gambar 5.2", "caption": "Tab fungsi keanggotaan Gaussian interaktif dengan garis penanda nilai input pengguna."}},
+                {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_inference.png"), "label": "Gambar 5.3", "caption": "Tab rincian inferensi Takagi-Sugeno Orde-1, kontribusi aturan, dan persamaan defuzzifikasi."}},
+                {"fig": {"path": str(ART_DIR / "gui_screenshots" / "gui_evaluation.png"), "label": "Gambar 5.4", "caption": "Tab ringkasan evaluasi studi ablasi dan perbandingan metrik pada Data Uji."}},
             ],
         },
         {
             "type": "chapter",
-            "heading": "7. ANALISIS HASIL",
+            "heading": "BAB 6. ANALISIS HASIL",
             "blocks": [
-                {"h2": "7.1 Interpretasi Hasil Clustering dan Parameter Model"},
+                {"h2": "6.1 Interpretasi Hasil Clustering dan Parameter Model"},
                 {"p": (
-                    "Partisi optimal c* = 2 memisahkan dinamika udara Jakarta secara alami menjadi rezim Polusi Rendah (pusat PM2.5 = 67.51, rata-rata target ISPU besok 69.48) "
-                    "dan rezim Polusi Tinggi (pusat PM2.5 = 94.18, rata-rata target ISPU besok 92.61). Setelah proses Hybrid Learning, pusat fungsi keanggotaan C1 pada PM2.5 bergeser dari "
-                    f"{fmt_num(prem['init_centers'][0][1])} menjadi {fmt_num(prem['opt_centers'][0][1])} dengan lebar kurva yang lebih tajam (σ dari {fmt_num(prem['init_sigmas'][0][1])} menjadi {fmt_num(prem['opt_sigmas'][0][1])}), "
-                    f"sedangkan C2 memperluas cakupan σ dari {fmt_num(prem['init_sigmas'][1][1])} menjadi {fmt_num(prem['opt_sigmas'][1][1])}. Hal ini menunjukkan bahwa Hybrid Learning memfokuskan aturan pertama pada kondisi transisi udara bersih "
-                    f"dan menyerahkan variasi lonjakan polusi tinggi pada aturan kedua. Pada tabel konsekuen linear (Tabel 5.6), koefisien terbesar secara konsisten berada pada p_PM2.5 "
-                    f"({fmt_num(conseq[0][2], 3)} dan {fmt_num(conseq[1][2], 3)}), menegaskan bahwa konsentrasi PM2.5 hari ini merupakan prediktor terkuat bagi ISPU hari berikutnya."
+                    f"Partisi optimal *c* = {c_opt} memisahkan dinamika udara Jakarta secara alami menjadi rezim Polusi Rendah (pusat PM2.5 = 67,51, rata-rata target ISPU besok 69,48) "
+                    f"dan rezim Polusi Tinggi (pusat PM2.5 = 94,18, rata-rata target ISPU besok 92,61). Setelah proses *Hybrid Learning*, pusat fungsi keanggotaan C1 pada PM2.5 bergeser dari "
+                    f"{fmt_id(prem['init_centers'][0][1])} menjadi {fmt_id(prem['opt_centers'][0][1])} dengan lebar kurva yang lebih tajam (*σ* dari {fmt_id(prem['init_sigmas'][0][1])} menjadi {fmt_id(prem['opt_sigmas'][0][1])}), "
+                    f"sedangkan C2 memperluas cakupan *σ* dari {fmt_id(prem['init_sigmas'][1][1])} menjadi {fmt_id(prem['opt_sigmas'][1][1])}. Hal ini menunjukkan bahwa *Hybrid Learning* memfokuskan aturan pertama pada kondisi transisi udara bersih "
+                    f"dan menyerahkan variasi lonjakan polusi tinggi pada aturan kedua. Pada tabel konsekuen linear (Tabel 4.6), koefisien terbesar secara konsisten berada pada *p_PM2.5* "
+                    f"({fmt_id(conseq[0][2], 3)} dan {fmt_id(conseq[1][2], 3)}), menegaskan bahwa konsentrasi PM2.5 hari ini merupakan prediktor terkuat bagi ISPU hari berikutnya."
                 )},
-                {"h2": "7.2 Analisis Dampak Estimasi Parameter dan Perbandingan Baseline"},
+                {"h2": "6.2 Analisis Dampak Estimasi Parameter dan Perbandingan Baseline"},
                 {"p": (
                     f"Hasil studi ablasi membuktikan dampak krusial dari pemilihan orde model dan estimasi parameter secara sistematis. Pada Data Uji, model pra-estimasi Tahap 0 (FCM + Sugeno Orde-0) "
-                    f"menghasilkan RMSE {fmt_num(test_m_s0['rmse'], 3)} (R² = {fmt_num(test_m_s0['r2'], 4)}) karena output konstan tidak mampu mengikuti perubahan gradien polutan harian. "
-                    f"Penambahan konsekuen linear melalui Regularized LSE (Tahap 1) langsung menurunkan RMSE Uji menjadi {fmt_num(test_m_s1['rmse'], 3)}, dan penyempurnaan premis melalui Hybrid Learning (Tahap 2) "
-                    f"menekan galat lebih jauh hingga mencapai RMSE Uji terbaik sebesar {fmt_num(test_m_s2['rmse'], 3)}, MAE {fmt_num(test_m_s2['mae'], 3)}, dan MAPE {fmt_num(test_m_s2['mape'], 2)}%—mengungguli "
-                    f"baseline Persistence (RMSE {fmt_num(test_m_pers['rmse'], 3)}) maupun Regresi Linear OLS (RMSE {fmt_num(test_m_ols['rmse'], 3)}). Pada Data Validasi, keunggulan Hybrid Learning juga terlihat jelas dengan "
-                    f"RMSE {fmt_num(val_m_s2['rmse'], 3)} (R² = {fmt_num(val_m_s2['r2'], 4)}) dibandingkan OLS ({fmt_num(val_m_ols['rmse'], 3)}) dan Persistence ({fmt_num(val_m_pers['rmse'], 3)})."
+                    f"menghasilkan RMSE {fmt_id(test_m_s0['rmse'], 3)} (R² = {fmt_id(test_m_s0['r2'], 4)}) karena *output* konstan tidak mampu mengikuti perubahan gradien polutan harian. "
+                    f"Penambahan konsekuen linear melalui *Regularized* LSE (Tahap 1) langsung menurunkan RMSE Uji menjadi {fmt_id(test_m_s1['rmse'], 3)}, dan penyempurnaan premis melalui *Hybrid Learning* (Tahap 2) "
+                    f"menekan galat lebih jauh hingga mencapai RMSE Uji terbaik sebesar {fmt_id(test_m_s2['rmse'], 3)}, MAE {fmt_id(test_m_s2['mae'], 3)}, dan MAPE {fmt_id(test_m_s2['mape'], 2)}%—mengungguli "
+                    f"*baseline* *Persistence* (RMSE {fmt_id(test_m_pers['rmse'], 3)}) maupun Regresi Linear OLS (RMSE {fmt_id(test_m_ols['rmse'], 3)}). Pada Data Validasi, keunggulan *Hybrid Learning* juga terlihat jelas dengan "
+                    f"RMSE {fmt_id(val_m_s2['rmse'], 3)} (R² = {fmt_id(val_m_s2['r2'], 4)}) dibandingkan OLS ({fmt_id(val_m_ols['rmse'], 3)}) dan *Persistence* ({fmt_id(val_m_pers['rmse'], 3)})."
                 )},
                 {"p": (
-                    f"Dari sisi klasifikasi kategori Permen LHK pada Data Uji, model mencapai Akurasi Kategori {test_m_s2['category_accuracy']*100:.2f}% dan Akurasi ±1 Kategori {test_m_s2['adjacent_category_accuracy']*100:.2f}%. "
-                    f"Penurunan nilai R² pada periode Uji (November–Desember 2021) dibandingkan Data Latih (R² = {fmt_num(tr_m_s2['r2'], 4)}) dan Validasi (R² = {fmt_num(val_m_s2['r2'], 4)}) disebabkan oleh pergeseran distribusi musiman "
-                    f"(seasonal distribution shift): periode November–Desember merupakan puncak musim penghujan di Jakarta yang memicu pencucian polutan (rain washout) secara mendadak sehingga proporsi hari berkategori Baik meningkat drastis."
+                    f"Dari sisi klasifikasi kategori Permen LHK pada Data Uji, model mencapai Akurasi Kategori {fmt_id(test_m_s2['category_accuracy']*100, 2)}% dan Akurasi ±1 Kategori {fmt_id(test_m_s2['adjacent_category_accuracy']*100, 2)}%. "
+                    f"Penurunan nilai R² pada periode Uji (November–Desember 2021) dibandingkan Data Latih (R² = {fmt_id(tr_m_s2['r2'], 4)}) dan Validasi (R² = {fmt_id(val_m_s2['r2'], 4)}) disebabkan oleh pergeseran distribusi musiman "
+                    f"(*seasonal distribution shift*): periode November–Desember merupakan puncak musim penghujan di Jakarta yang memicu pencucian polutan (*rain washout*) secara mendadak sehingga proporsi hari berkategori Baik meningkat drastis."
                 )},
-                {"h2": "7.3 Kelebihan, Kelemahan, dan Potensi Pengembangan"},
-                {"ul": [
-                    "Kelebihan Model: Transparan dan mudah diinterpretasi melalui aturan IF-THEN serta bobot penyulutan; tahan terhadap outlier berkat perhitungan log-space; mampu mengungguli model linear global maupun persistensi pada metrik error kontinu.",
-                    "Kelemahan Model: Hanya bergantung pada 6 variabel polutan historis hari ke-t tanpa variabel meteorologi eksternal, sehingga lonjakan/penurunan mendadak akibat hujan deras atau perubahan arah angin belum dapat dijelaskan sepenuhnya.",
-                    "Potensi Pengembangan: Integrasi data meteorologi BMKG (curah hujan, kecepatan angin, suhu, dan kelembaban relatif), penggunaan jendela lag multi-hari (t-2, t-1, t), serta eksperimen optimasi metaheuristik seperti PSO-ANFIS [6] atau model hibrid musiman multi-tahun.",
-                ]},
+                {"h2": "6.3 Kelebihan, Kelemahan, dan Potensi Pengembangan"},
+                {"p": "Kelebihan utama model yang dibangun meliputi sifatnya yang transparan dan mudah diinterpretasi melalui aturan IF–THEN serta bobot penyulutan, ketahanan numerik terhadap *outlier* berkat perhitungan pada ruang logaritma (*log-space*), serta kemampuannya mengungguli model linear global maupun *persistence* pada seluruh metrik kesalahan kontinu. Sementara itu, kelemahan model terletak pada ketergantungannya terhadap enam variabel polutan historis hari ke-*t* tanpa melibatkan variabel meteorologi eksternal, sehingga fluktuasi mendadak akibat hujan deras atau perubahan arah angin belum tertangkap sepenuhnya. Untuk pengembangan penelitian selanjutnya, integrasi data meteorologi BMKG (curah hujan, kecepatan angin, suhu, dan kelembaban relatif), penggunaan jendela *lag* multi-hari, serta optimasi metaheuristik seperti PSO-ANFIS (Karki, 2023) berpotensi meningkatkan akurasi lintas musim secara signifikan."},
             ],
         },
         {
             "type": "chapter",
-            "heading": "8. KESIMPULAN DAN SARAN",
+            "heading": "BAB 7. KESIMPULAN DAN SARAN",
             "blocks": [
-                {"h2": "8.1 Kesimpulan"},
+                {"h2": "7.1 Kesimpulan"},
+                {"p": "Berdasarkan perancangan, implementasi, dan pengujian yang telah dilakukan, dapat diambil kesimpulan sebagai berikut."},
                 {"ol": [
-                    f"Model fuzzy Takagi-Sugeno Orde-1 berhasil dibangun dan diimplementasikan untuk memprediksi skor serta kategori mutu udara ISPU(t+1) DKI Jakarta menggunakan 1.444 pasangan pengamatan harian resmi dari 5 stasiun SPKU tahun 2021 tanpa kebocoran data.",
-                    f"Metode clustering Fuzzy C-Means (FCM) secara objektif mempartisi data latih menjadi c* = {c_opt} cluster optimal berdasarkan nilai PC tertinggi ({fmt_num(res['sweep_results'][0]['pc'], 4)}) dan Validation RMSE terendah, yang merepresentasikan kondisi Polusi Rendah dan Polusi Tinggi dengan dominansi polutan PM2.5.",
-                    f"Estimasi parameter dua-tahap menggunakan Hybrid Learning (Regularized LSE λ* = {lam_opt:.0f} dan Gradient Descent dengan early stopping) menyempurnakan ketajaman fungsi keanggotaan Gaussian serta menyetel koefisien konsekuen linear secara optimal pada epoch ke-{int(best_ep_row['epoch'])}.",
-                    f"Studi ablasi membuktikan perbaikan performa yang konsisten: pada Data Uji, TSK-1 Hybrid mencapai RMSE terbaik ({fmt_num(test_m_s2['rmse'], 3)}), MAE ({fmt_num(test_m_s2['mae'], 3)}), dan MAPE ({fmt_num(test_m_s2['mape'], 2)}%), mengungguli Tahap 0 Sugeno-0 (RMSE {fmt_num(test_m_s0['rmse'], 3)}), Persistence (RMSE {fmt_num(test_m_pers['rmse'], 3)}), dan Regresi Linear OLS (RMSE {fmt_num(test_m_ols['rmse'], 3)}), dengan akurasi ±1 kategori sebesar {test_m_s2['adjacent_category_accuracy']*100:.2f}%.",
+                    f"Model *fuzzy* Takagi-Sugeno Orde-1 berhasil dibangun dan diimplementasikan untuk memprediksi skor serta kategori mutu udara ISPU(*t*+1) DKI Jakarta menggunakan {fmt_int_id(res['n_paired'])} pasangan pengamatan harian resmi dari 5 stasiun SPKU tahun 2021 tanpa kebocoran data.",
+                    f"Metode *clustering* *Fuzzy C-Means* (FCM) secara objektif mempartisi data latih menjadi *c* = {c_opt} *cluster* optimal berdasarkan nilai PC tertinggi ({fmt_id(res['sweep_results'][0]['pc'], 4)}) dan *Validation RMSE* terendah, yang merepresentasikan kondisi Polusi Rendah dan Polusi Tinggi dengan dominansi polutan PM2.5.",
+                    f"Estimasi parameter dua-tahap menggunakan *Hybrid Learning* (*Regularized* LSE *λ* = {fmt_id(lam_opt, 0)} dan *Gradient Descent* dengan *early stopping*) menyempurnakan ketajaman fungsi keanggotaan Gaussian serta menyetel koefisien konsekuen linear secara optimal pada *epoch* ke-{int(best_ep_row['epoch'])}.",
+                    f"Studi ablasi membuktikan perbaikan performa yang konsisten: pada Data Uji, TSK-1 *Hybrid* mencapai RMSE terbaik ({fmt_id(test_m_s2['rmse'], 3)}), MAE ({fmt_id(test_m_s2['mae'], 3)}), dan MAPE ({fmt_id(test_m_s2['mape'], 2)}%), mengungguli Tahap 0 Sugeno-0 (RMSE {fmt_id(test_m_s0['rmse'], 3)}), *Persistence* (RMSE {fmt_id(test_m_pers['rmse'], 3)}), dan Regresi Linear OLS (RMSE {fmt_id(test_m_ols['rmse'], 3)}), dengan akurasi ±1 kategori sebesar {fmt_id(test_m_s2['adjacent_category_accuracy']*100, 2)}%.",
                 ]},
-                {"h2": "8.2 Saran"},
-                {"p": (
-                    "Untuk penelitian lanjutan disarankan menggabungkan dataset ISPU lintas tahun (2021–2025) bersama data meteorologi harian BMKG (curah hujan, kecepatan angin, dan kelembaban udara) "
-                    "agar model mampu menangkap pergeseran musiman antara musim kemarau dan musim penghujan di DKI Jakarta secara lebih presisi."
-                )},
+                {"h2": "7.2 Saran"},
+                {"ol": [
+                    "Menggabungkan dataset ISPU lintas tahun (2021–2025) bersama data meteorologi harian BMKG (curah hujan, kecepatan angin, dan kelembaban udara) agar model mampu menangkap pergeseran antara musim kemarau dan musim penghujan secara lebih presisi.",
+                    "Mengeksplorasi jendela masukan multi-hari (*t*−2, *t*−1, *t*) serta metode optimasi metaheuristik seperti *Particle Swarm Optimization* (PSO) sebagai pembanding terhadap *Gradient Descent* pada penyetelan parameter premis.",
+                ]},
             ],
         },
         {
             "type": "chapter",
-            "heading": "9. DAFTAR PUSTAKA",
+            "heading": "DAFTAR PUSTAKA",
             "blocks": [
                 {"bib": [
-                    "[1] L. A. Zadeh, \"Fuzzy sets,\" Information and Control, vol. 8, no. 3, pp. 338–353, Jun. 1965.",
-                    "[2] T. Takagi and M. Sugeno, \"Fuzzy identification of systems and its applications to modeling and control,\" IEEE Transactions on Systems, Man, and Cybernetics, vol. SMC-15, no. 1, pp. 116–132, Jan.–Feb. 1985.",
-                    "[3] J. C. Bezdek, Pattern Recognition with Fuzzy Objective Function Algorithms. New York, NY, USA: Plenum Press, 1981.",
-                    "[4] X. L. Xie and G. Beni, \"A validity measure for fuzzy clustering,\" IEEE Transactions on Pattern Analysis and Machine Intelligence, vol. 13, no. 8, pp. 841–847, Aug. 1991.",
-                    "[5] J.-S. R. Jang, \"ANFIS: Adaptive-network-based fuzzy inference system,\" IEEE Transactions on Systems, Man, and Cybernetics, vol. 23, no. 3, pp. 665–685, May–Jun. 1993.",
-                    "[6] A. Karki, \"Improved ANFIS model based on confinement optimized PSO to predict the air quality of Delhi, India,\" in Proc. 2023 IEEE International Conference on Fuzzy Systems (FUZZ), 2023, doi: 10.1109/FUZZ52849.2023.10309676.",
-                    "[7] Kementerian Lingkungan Hidup dan Kehutanan Republik Indonesia, Peraturan Menteri LHK Nomor P.14/MENLHK/SETJEN/KUM.1/7/2020 tentang Indeks Standar Pencemar Udara, Jakarta, 2020; serta Dinas Lingkungan Hidup Provinsi DKI Jakarta, Data Indeks Standar Pencemar Udara (ISPU) di Provinsi DKI Jakarta Tahun 2021, Portal Satu Data Jakarta (satudata.jakarta.go.id).",
+                    "Bezdek, J. C. (1981). *Pattern recognition with fuzzy objective function algorithms*. Plenum Press.",
+                    "Dinas Lingkungan Hidup Provinsi DKI Jakarta. (2021). *Data Indeks Standar Pencemar Udara (ISPU) di Provinsi DKI Jakarta tahun 2021* [Data set]. Portal Satu Data Jakarta. https://satudata.jakarta.go.id/",
+                    "Jang, J.-S. R. (1993). ANFIS: Adaptive-network-based fuzzy inference system. *IEEE Transactions on Systems, Man, and Cybernetics*, *23*(3), 665–685. https://doi.org/10.1109/21.256541",
+                    "Karki, A. (2023). Improved ANFIS model based on confinement optimized PSO to predict the air quality of Delhi, India. In *2023 IEEE International Conference on Fuzzy Systems (FUZZ)*. IEEE. https://doi.org/10.1109/FUZZ52849.2023.10309676",
+                    "Kementerian Lingkungan Hidup dan Kehutanan Republik Indonesia. (2020). *Peraturan Menteri Lingkungan Hidup dan Kehutanan Nomor P.14/MENLHK/SETJEN/KUM.1/7/2020 tentang Indeks Standar Pencemar Udara*.",
+                    "Takagi, T., & Sugeno, M. (1985). Fuzzy identification of systems and its applications to modeling and control. *IEEE Transactions on Systems, Man, and Cybernetics*, *SMC-15*(1), 116–132. https://doi.org/10.1109/TSMC.1985.6313399",
+                    "Xie, X. L., & Beni, G. (1991). A validity measure for fuzzy clustering. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, *13*(8), 841–847. https://doi.org/10.1109/34.85677",
+                    "Zadeh, L. A. (1965). Fuzzy sets. *Information and Control*, *8*(3), 338–353. https://doi.org/10.1016/S0019-9958(65)90241-X",
                 ]}
             ],
         },
@@ -522,9 +587,14 @@ def render_markdown(sections: list[dict]) -> str:
     parts: list[str] = []
     for sec in sections:
         if sec["type"] == "cover":
-            parts.append(f"# {sec['title']}\n\n## {sec['subtitle']}\n")
-            parts.append(md_table(["Atribut", "Keterangan"], [[k, v] for k, v in sec["meta"]]))
-            parts.append("\n---\n")
+            for ln in sec["top_lines"]:
+                parts.append(f"**{ln}**\n")
+            parts.append(f"**{sec['course_line']}**\n")
+            rel_logo = Path(sec["logo_path"]).relative_to(ROOT).as_posix()
+            parts.append(f"![Logo Universitas Diponegoro](../{rel_logo})\n")
+            parts.append("Disusun oleh:\n")
+            parts.append(md_table(["Nama", "NIM"], [[n, nim] for n, nim in sec["members"]]))
+            parts.append("\n" + "\n".join(f"**{ln}**" for ln in sec["institution_lines"]) + "\n\n---\n")
         else:
             parts.append(f"\n# {sec['heading']}\n")
             for blk in sec["blocks"]:
@@ -533,22 +603,20 @@ def render_markdown(sections: list[dict]) -> str:
                 elif "p" in blk:
                     parts.append(blk["p"] + "\n")
                 elif "eq" in blk:
-                    parts.append(f"\n```text\n{blk['eq']}\n```\n")
+                    parts.append(f"\n> {blk['eq']['text']}\n")
                 elif "code" in blk:
                     parts.append(f"\n```python\n{blk['code']}\n```\n")
-                elif "ul" in blk:
-                    parts.append("\n" + "\n".join(f"- {item}" for item in blk["ul"]) + "\n")
                 elif "ol" in blk:
                     parts.append("\n" + "\n".join(f"{idx+1}. {item}" for idx, item in enumerate(blk["ol"])) + "\n")
                 elif "bib" in blk:
                     parts.append("\n" + "\n\n".join(blk["bib"]) + "\n")
                 elif "table" in blk:
                     t = blk["table"]
-                    parts.append(f"\n**{t['caption']}**\n\n" + md_table(t["headers"], t["rows"]) + "\n")
+                    parts.append(f"\n**{t['label']}** {t['caption']}\n\n" + md_table(t["headers"], t["rows"]) + "\n")
                 elif "fig" in blk:
                     f = blk["fig"]
                     rel = Path(f["path"]).relative_to(ROOT).as_posix()
-                    parts.append(f"\n![{f['caption']}](../{rel})\n*{f['caption']}*\n")
+                    parts.append(f"\n![{f['label']} {f['caption']}](../{rel})\n**{f['label']}** {f['caption']}\n")
     return "\n".join(parts)
 
 
@@ -556,59 +624,71 @@ def render_html(sections: list[dict]) -> str:
     body: list[str] = []
     for sec in sections:
         if sec["type"] == "cover":
-            meta_rows = "".join(
-                f"<tr><th>{html.escape(k)}</th><td>{html.escape(v)}</td></tr>"
-                for k, v in sec["meta"]
+            logo_uri = Path(sec["logo_path"]).resolve().as_uri()
+            top_html = "".join(f'<p class="cover-top">{inline_to_html(ln)}</p>' for ln in sec["top_lines"])
+            member_rows = "".join(
+                f"<tr><td>{html.escape(n)}</td><td class='nim-col'>{html.escape(nim)}</td></tr>"
+                for n, nim in sec["members"]
             )
+            inst_html = "".join(f'<p class="cover-inst">{html.escape(ln)}</p>' for ln in sec["institution_lines"])
             body.append(
                 f"""
                 <section class="cover-page">
-                    <div class="badge">PROYEK BESAR INDIVIDU — KOMPUTASI LUNAK</div>
-                    <h1>{html.escape(sec['title'])}</h1>
-                    <h2>{html.escape(sec['subtitle'])}</h2>
-                    <div class="cover-divider"></div>
-                    <table class="meta-table">{meta_rows}</table>
-                    <div class="cover-footer">Program Studi Informatika • Fakultas Sains dan Matematika • Universitas Diponegoro</div>
+                    <div class="cover-top-wrap">
+                        {top_html}
+                        <p class="cover-course">{html.escape(sec['course_line'])}</p>
+                    </div>
+                    <div class="cover-logo-wrap">
+                        <img src="{logo_uri}" alt="Logo Universitas Diponegoro" class="cover-logo"/>
+                    </div>
+                    <div class="cover-author-wrap">
+                        <p class="cover-by">Disusun oleh:</p>
+                        <table class="cover-table">
+                            <thead><tr><th>Nama</th><th class="nim-col">NIM</th></tr></thead>
+                            <tbody>{member_rows}</tbody>
+                        </table>
+                    </div>
+                    <div class="cover-inst-wrap">
+                        {inst_html}
+                    </div>
                 </section>
                 """
             )
         else:
-            body.append(f'<section class="chapter"><h1>{html.escape(sec["heading"])}</h1>')
+            is_bib = sec["heading"] == "DAFTAR PUSTAKA"
+            body.append(f'<section class="chapter"><h1 class="chapter-title">{html.escape(sec["heading"])}</h1>')
             for blk in sec["blocks"]:
                 if "h2" in blk:
                     body.append(f"<h2>{html.escape(blk['h2'])}</h2>")
                 elif "p" in blk:
-                    body.append(f"<p>{html.escape(blk['p'])}</p>")
+                    body.append(f'<p class="body-p">{inline_to_html(blk["p"])}</p>')
                 elif "eq" in blk:
-                    body.append(f'<pre class="equation">{html.escape(blk["eq"])}</pre>')
+                    body.append(f'<div class="equation">{blk["eq"]["html"]}</div>')
                 elif "code" in blk:
                     body.append(f'<pre class="codeblock">{html.escape(blk["code"])}</pre>')
-                elif "ul" in blk:
-                    items = "".join(f"<li>{html.escape(i)}</li>" for i in blk["ul"])
-                    body.append(f"<ul>{items}</ul>")
                 elif "ol" in blk:
-                    items = "".join(f"<li>{html.escape(i)}</li>" for i in blk["ol"])
+                    items = "".join(f"<li>{inline_to_html(i)}</li>" for i in blk["ol"])
                     body.append(f"<ol>{items}</ol>")
                 elif "bib" in blk:
-                    items = "".join(f'<p class="bib-item">{html.escape(i)}</p>' for i in blk["bib"])
+                    items = "".join(f'<p class="bib-item">{inline_to_html(i)}</p>' for i in blk["bib"])
                     body.append(items)
                 elif "table" in blk:
                     t = blk["table"]
-                    ths = "".join(f"<th>{html.escape(h)}</th>" for h in t["headers"])
+                    ths = "".join(f"<th>{inline_to_html(h)}</th>" for h in t["headers"])
                     trs = "".join(
-                        "<tr>" + "".join(f"<td>{html.escape(str(c))}</td>" for c in r) + "</tr>"
+                        "<tr>" + "".join(f"<td>{inline_to_html(str(c))}</td>" for c in r) + "</tr>"
                         for r in t["rows"]
                     )
                     body.append(
-                        f'<div class="table-wrap"><div class="caption">{html.escape(t["caption"])}</div>'
+                        f'<div class="table-wrap"><div class="caption"><strong>{html.escape(t["label"])}</strong> {inline_to_html(t["caption"])}</div>'
                         f"<table><thead><tr>{ths}</tr></thead><tbody>{trs}</tbody></table></div>"
                     )
                 elif "fig" in blk:
                     f = blk["fig"]
                     uri = Path(f["path"]).resolve().as_uri()
                     body.append(
-                        f'<figure><img src="{uri}" alt="{html.escape(f["caption"])}"/>'
-                        f'<figcaption>{html.escape(f["caption"])}</figcaption></figure>'
+                        f'<figure><img src="{uri}" alt="{html.escape(f["label"])}"/>'
+                        f'<figcaption><strong>{html.escape(f["label"])}</strong> {inline_to_html(f["caption"])}</figcaption></figure>'
                     )
             body.append("</section>")
 
@@ -616,37 +696,42 @@ def render_html(sections: list[dict]) -> str:
 <html lang="id">
 <head>
 <meta charset="utf-8"/>
-<title>Laporan Proyek Besar Komputasi Lunak — Menza Isaiah Tampubolon</title>
+<title>Proyek Besar Individu — Menza Isaiah Tampubolon</title>
 <style>
-  @page {{ size: A4; margin: 20mm 18mm 20mm 18mm; }}
-  body {{ font-family: "Segoe UI", Calibri, Arial, sans-serif; color: #1E293B; line-height: 1.55; font-size: 10.5pt; margin: 0; padding: 0; }}
-  .cover-page {{ page-break-after: always; text-align: center; padding-top: 32mm; }}
-  .badge {{ display: inline-block; background: #0F2942; color: #FFFFFF; padding: 6px 16px; border-radius: 4px; font-weight: 700; font-size: 9.5pt; letter-spacing: 0.8px; margin-bottom: 18px; }}
-  .cover-page h1 {{ font-size: 19pt; color: #0F2942; margin: 10px 0; line-height: 1.3; }}
-  .cover-page h2 {{ font-size: 12.5pt; color: #334155; font-weight: 500; margin: 12px auto 24px auto; max-width: 90%; line-height: 1.45; }}
-  .cover-divider {{ width: 90px; height: 4px; background: #1565C0; margin: 16px auto 28px auto; }}
-  .meta-table {{ margin: 0 auto; width: 78%; border-collapse: collapse; text-align: left; font-size: 10.5pt; }}
-  .meta-table th, .meta-table td {{ border: 1px solid #CBD5E1; padding: 8px 12px; }}
-  .meta-table th {{ background: #F1F5F9; width: 36%; color: #0F2942; }}
-  .cover-footer {{ margin-top: 42mm; font-weight: 600; color: #475569; font-size: 10pt; }}
-  .chapter {{ margin-bottom: 14px; }}
-  .chapter h1 {{ font-size: 14pt; color: #0F2942; border-bottom: 2px solid #1565C0; padding-bottom: 4px; margin-top: 18px; page-break-after: avoid; }}
-  h2 {{ font-size: 11.5pt; color: #1E3A8A; margin: 12px 0 6px 0; page-break-after: avoid; }}
-  p {{ text-align: justify; margin: 6px 0; }}
-  ul, ol {{ margin: 6px 0 8px 20px; }}
-  li {{ margin-bottom: 4px; text-align: justify; }}
-  pre.equation {{ background: #F8FAFC; border-left: 4px solid #1565C0; padding: 8px 12px; font-family: "Consolas", "Courier New", monospace; font-size: 9.5pt; white-space: pre-wrap; margin: 8px 0; }}
-  pre.codeblock {{ background: #0F172A; color: #E2E8F0; padding: 10px 12px; border-radius: 5px; font-family: "Consolas", monospace; font-size: 8.5pt; white-space: pre-wrap; }}
-  .table-wrap {{ margin: 10px 0 14px 0; page-break-inside: avoid; }}
-  .caption {{ font-weight: 700; font-size: 9.5pt; color: #0F2942; margin-bottom: 5px; }}
-  table {{ width: 100%; border-collapse: collapse; font-size: 8.6pt; }}
-  th, td {{ border: 1px solid #CBD5E1; padding: 5px 7px; text-align: left; }}
-  thead th {{ background: #0F2942; color: #FFFFFF; font-weight: 600; }}
-  tbody tr:nth-child(even) {{ background: #F8FAFC; }}
-  figure {{ text-align: center; margin: 12px 0 16px 0; page-break-inside: avoid; }}
-  figure img {{ max-width: 96%; max-height: 110mm; border: 1px solid #CBD5E1; border-radius: 4px; }}
-  figcaption {{ font-size: 9pt; color: #475569; font-style: italic; margin-top: 4px; }}
-  .bib-item {{ padding-left: 22px; text-indent: -22px; margin-bottom: 6px; font-size: 9.8pt; }}
+  @page {{ size: A4; margin: 25.4mm 25.4mm 25.4mm 25.4mm; }}
+  * {{ color: #000000 !important; }}
+  body {{ font-family: "Times New Roman", Times, serif; color: #000000; line-height: 1.25; font-size: 12pt; margin: 0; padding: 0; background: #FFFFFF; }}
+  .cover-page {{ page-break-after: always; text-align: center; display: flex; flex-direction: column; justify-content: space-between; min-height: 242mm; }}
+  .cover-top {{ font-weight: bold; font-size: 12pt; margin: 2px 0; text-align: center; }}
+  .cover-course {{ font-weight: bold; font-size: 12pt; margin-top: 16px; text-align: center; }}
+  .cover-logo-wrap {{ margin: 16px 0; }}
+  .cover-logo {{ width: 65mm; height: auto; }}
+  .cover-by {{ text-align: center; margin: 6px 0 8px 0; font-size: 12pt; }}
+  .cover-table {{ margin: 0 auto; width: 118mm; border-collapse: collapse; font-size: 12pt; }}
+  .cover-table th, .cover-table td {{ border: none; padding: 2px 6px; text-align: left; background: #FFFFFF !important; }}
+  .cover-table th {{ font-weight: bold; text-align: center; }}
+  .cover-table td.nim-col, .cover-table th.nim-col {{ text-align: right; width: 42mm; }}
+  .cover-inst-wrap {{ margin-top: 22px; }}
+  .cover-inst {{ font-weight: bold; font-size: 12pt; margin: 2px 0; text-align: center; }}
+
+  .chapter {{ page-break-before: always; }}
+  .chapter-title {{ font-size: 12pt; font-weight: bold; text-align: center; margin: 0 0 14px 0; page-break-after: avoid; }}
+  h2 {{ font-size: 12pt; font-weight: bold; text-align: left; margin: 12px 0 6px 0; page-break-after: avoid; }}
+  p.body-p {{ text-align: justify; text-indent: 0.5in; margin: 0 0 6px 0; line-height: 1.25; }}
+  ol {{ margin: 4px 0 8px 0.5in; padding-left: 18px; }}
+  li {{ margin-bottom: 4px; text-align: justify; line-height: 1.25; }}
+  .equation {{ text-align: center; font-family: "Times New Roman", Times, serif; font-size: 12pt; margin: 10px 0; line-height: 1.35; }}
+  pre.codeblock {{ background: #FFFFFF; color: #000000; border: 1px solid #000000; padding: 8px 10px; font-family: "Consolas", "Courier New", monospace; font-size: 9pt; white-space: pre-wrap; margin: 8px 0; }}
+  .table-wrap {{ margin: 10px 0 12px 0; page-break-inside: avoid; }}
+  .caption {{ text-align: center; font-size: 11pt; margin-bottom: 5px; }}
+  table {{ width: 100%; border-collapse: collapse; font-size: 9.5pt; }}
+  th, td {{ border: 1px solid #000000; padding: 4px 6px; text-align: left; }}
+  thead th {{ background: #E8E8E8; font-weight: bold; text-align: center; }}
+  tbody td {{ background: #FFFFFF; }}
+  figure {{ text-align: center; margin: 10px 0 14px 0; page-break-inside: avoid; }}
+  figure img {{ max-width: 96%; max-height: 108mm; }}
+  figcaption {{ font-size: 11pt; text-align: center; margin-top: 5px; }}
+  .bib-item {{ padding-left: 0.5in; text-indent: -0.5in; text-align: left; margin: 0 0 8px 0; font-size: 12pt; line-height: 1.25; }}
 </style>
 </head>
 <body>
@@ -656,7 +741,7 @@ def render_html(sections: list[dict]) -> str:
 """
 
 
-def _set_cell_bg(cell, hex_color: str) -> None:
+def _set_cell_shading(cell, hex_color: str) -> None:
     tc_pr = cell._tc.get_or_add_tcPr()
     shd = OxmlElement("w:shd")
     shd.set(qn("w:val"), "clear")
@@ -665,122 +750,192 @@ def _set_cell_bg(cell, hex_color: str) -> None:
     tc_pr.append(shd)
 
 
+def _clear_table_borders(table) -> None:
+    tbl_pr = table._tbl.tblPr
+    borders = OxmlElement("w:tblBorders")
+    for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        el = OxmlElement(f"w:{side}")
+        el.set(qn("w:val"), "none")
+        borders.append(el)
+    tbl_pr.append(borders)
+
+
+def _set_thin_black_borders(table) -> None:
+    tbl_pr = table._tbl.tblPr
+    borders = OxmlElement("w:tblBorders")
+    for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        el = OxmlElement(f"w:{side}")
+        el.set(qn("w:val"), "single")
+        el.set(qn("w:sz"), "4")
+        el.set(qn("w:space"), "0")
+        el.set(qn("w:color"), "000000")
+        borders.append(el)
+    tbl_pr.append(borders)
+
+
 def render_docx(sections: list[dict], out_path: Path) -> None:
     doc = docx.Document()
     for sec_page in doc.sections:
-        sec_page.top_margin = Inches(0.8)
-        sec_page.bottom_margin = Inches(0.8)
-        sec_page.left_margin = Inches(0.85)
-        sec_page.right_margin = Inches(0.85)
+        sec_page.top_margin = Inches(1.0)
+        sec_page.bottom_margin = Inches(1.0)
+        sec_page.left_margin = Inches(1.0)
+        sec_page.right_margin = Inches(1.0)
 
     normal_style = doc.styles["Normal"]
-    normal_style.font.name = "Calibri"
-    normal_style.font.size = Pt(11)
+    normal_style.font.name = "Times New Roman"
+    normal_style.font.size = Pt(12)
+    normal_style.font.color.rgb = BLACK
 
     for sec in sections:
         if sec["type"] == "cover":
-            p_badge = doc.add_paragraph()
-            p_badge.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            r_b = p_badge.add_run("PROYEK BESAR INDIVIDU — KOMPUTASI LUNAK")
-            r_b.bold = True
-            r_b.font.size = Pt(11)
-            r_b.font.color.rgb = RGBColor(0x15, 0x65, 0xC0)
+            for ln in sec["top_lines"]:
+                p = doc.add_paragraph()
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.paragraph_format.space_after = Pt(4)
+                _add_formatted_runs(p, ln, font_size=Pt(12), base_bold=True)
 
-            p_title = doc.add_paragraph()
-            p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            r_t = p_title.add_run(sec["title"])
-            r_t.bold = True
-            r_t.font.size = Pt(17)
-            r_t.font.color.rgb = RGBColor(0x0F, 0x29, 0x42)
+            p_course = doc.add_paragraph()
+            p_course.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_course.paragraph_format.space_before = Pt(12)
+            p_course.paragraph_format.space_after = Pt(18)
+            _add_formatted_runs(p_course, sec["course_line"], font_size=Pt(12), base_bold=True)
 
-            p_sub = doc.add_paragraph()
-            p_sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            r_s = p_sub.add_run(sec["subtitle"])
-            r_s.font.size = Pt(12)
-            r_s.font.color.rgb = RGBColor(0x33, 0x41, 0x55)
+            p_logo = doc.add_paragraph()
+            p_logo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_logo.paragraph_format.space_before = Pt(8)
+            p_logo.paragraph_format.space_after = Pt(24)
+            p_logo.add_run().add_picture(sec["logo_path"], width=Inches(2.55))
 
-            tbl = doc.add_table(rows=len(sec["meta"]), cols=2)
+            p_by = doc.add_paragraph()
+            p_by.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p_by.paragraph_format.space_after = Pt(6)
+            _add_formatted_runs(p_by, "Disusun oleh:", font_size=Pt(12))
+
+            tbl = doc.add_table(rows=len(sec["members"]) + 1, cols=2)
             tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-            tbl.style = "Table Grid"
-            for idx, (k, v) in enumerate(sec["meta"]):
-                c0, c1 = tbl.rows[idx].cells[0], tbl.rows[idx].cells[1]
-                c0.text = k
-                c1.text = v
-                _set_cell_bg(c0, "F1F5F9")
-                for run in c0.paragraphs[0].runs:
-                    run.bold = True
+            _clear_table_borders(tbl)
+            hdr_left, hdr_right = tbl.rows[0].cells[0], tbl.rows[0].cells[1]
+            hdr_left.width, hdr_right.width = Inches(3.2), Inches(1.7)
+            p_hl = hdr_left.paragraphs[0]
+            p_hl.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            _add_formatted_runs(p_hl, "Nama", font_size=Pt(12), base_bold=True)
+            p_hr = hdr_right.paragraphs[0]
+            p_hr.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            _add_formatted_runs(p_hr, "NIM", font_size=Pt(12), base_bold=True)
 
-            p_ft = doc.add_paragraph("\n\nProgram Studi Informatika • Fakultas Sains dan Matematika • Universitas Diponegoro")
-            p_ft.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            for idx, (nama, nim) in enumerate(sec["members"], start=1):
+                c0, c1 = tbl.rows[idx].cells[0], tbl.rows[idx].cells[1]
+                c0.width, c1.width = Inches(3.2), Inches(1.7)
+                p0 = c0.paragraphs[0]
+                p0.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                _add_formatted_runs(p0, nama, font_size=Pt(12))
+                p1 = c1.paragraphs[0]
+                p1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                _add_formatted_runs(p1, nim, font_size=Pt(12))
+
+            p_sp = doc.add_paragraph()
+            p_sp.paragraph_format.space_before = Pt(36)
+            for ln in sec["institution_lines"]:
+                p_in = doc.add_paragraph()
+                p_in.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p_in.paragraph_format.space_after = Pt(2)
+                _add_formatted_runs(p_in, ln, font_size=Pt(12), base_bold=True)
+
             doc.add_page_break()
             continue
 
-        h1 = doc.add_heading(sec["heading"], level=1)
-        for run in h1.runs:
-            run.font.color.rgb = RGBColor(0x0F, 0x29, 0x42)
+        # Chapter Heading (centered bold black 12pt)
+        if sec["heading"] != "BAB 1. PENDAHULUAN":
+            doc.add_page_break()
+        h1 = doc.add_heading(level=1)
+        h1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        h1.paragraph_format.space_after = Pt(10)
+        _add_formatted_runs(h1, sec["heading"], font_size=Pt(12), base_bold=True)
 
         for blk in sec["blocks"]:
             if "h2" in blk:
-                h2 = doc.add_heading(blk["h2"], level=2)
-                for run in h2.runs:
-                    run.font.color.rgb = RGBColor(0x1E, 0x3A, 0x8A)
+                h2 = doc.add_heading(level=2)
+                h2.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                h2.paragraph_format.space_before = Pt(8)
+                h2.paragraph_format.space_after = Pt(4)
+                _add_formatted_runs(h2, blk["h2"], font_size=Pt(12), base_bold=True)
             elif "p" in blk:
-                p = doc.add_paragraph(blk["p"])
+                p = doc.add_paragraph()
                 p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                p.paragraph_format.first_line_indent = Inches(0.5)
+                p.paragraph_format.line_spacing = 1.15
+                p.paragraph_format.space_after = Pt(4)
+                _add_formatted_runs(p, blk["p"], font_size=Pt(12))
             elif "eq" in blk:
                 p = doc.add_paragraph()
-                r = p.add_run(blk["eq"])
-                r.font.name = "Consolas"
-                r.font.size = Pt(9.5)
+                p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                p.paragraph_format.space_before = Pt(6)
+                p.paragraph_format.space_after = Pt(6)
+                r = p.add_run(blk["eq"]["text"])
+                r.font.name = "Times New Roman"
+                r.font.size = Pt(12)
+                r.italic = True
+                r.font.color.rgb = BLACK
             elif "code" in blk:
                 p = doc.add_paragraph()
+                p.paragraph_format.left_indent = Inches(0.25)
+                p.paragraph_format.space_before = Pt(4)
+                p.paragraph_format.space_after = Pt(6)
                 r = p.add_run(blk["code"])
                 r.font.name = "Consolas"
-                r.font.size = Pt(8.5)
-            elif "ul" in blk:
-                for item in blk["ul"]:
-                    doc.add_paragraph(item, style="List Bullet")
+                r.font.size = Pt(9.5)
+                r.font.color.rgb = BLACK
             elif "ol" in blk:
-                for item in blk["ol"]:
-                    doc.add_paragraph(item, style="List Number")
+                for idx, item in enumerate(blk["ol"], start=1):
+                    p = doc.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+                    p.paragraph_format.left_indent = Inches(0.5)
+                    p.paragraph_format.first_line_indent = Inches(-0.25)
+                    p.paragraph_format.line_spacing = 1.15
+                    p.paragraph_format.space_after = Pt(3)
+                    _add_formatted_runs(p, f"{idx}. {item}", font_size=Pt(12))
             elif "bib" in blk:
                 for item in blk["bib"]:
-                    p = doc.add_paragraph(item)
-                    p.paragraph_format.left_indent = Inches(0.3)
-                    p.paragraph_format.first_line_indent = Inches(-0.3)
+                    p = doc.add_paragraph()
+                    p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    p.paragraph_format.left_indent = Inches(0.5)
+                    p.paragraph_format.first_line_indent = Inches(-0.5)
+                    p.paragraph_format.line_spacing = 1.15
+                    p.paragraph_format.space_after = Pt(6)
+                    _add_formatted_runs(p, item, font_size=Pt(12))
             elif "table" in blk:
                 t = blk["table"]
                 cap = doc.add_paragraph()
-                rc = cap.add_run(t["caption"])
-                rc.bold = True
-                rc.font.size = Pt(10)
+                cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                cap.paragraph_format.space_before = Pt(6)
+                cap.paragraph_format.space_after = Pt(4)
+                _add_formatted_runs(cap, f"**{t['label']}** {t['caption']}", font_size=Pt(11))
+
                 tbl = doc.add_table(rows=len(t["rows"]) + 1, cols=len(t["headers"]))
-                tbl.style = "Table Grid"
                 tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+                _set_thin_black_borders(tbl)
                 for j, h in enumerate(t["headers"]):
                     cell = tbl.rows[0].cells[j]
-                    cell.text = h
-                    _set_cell_bg(cell, "0F2942")
-                    for run in cell.paragraphs[0].runs:
-                        run.bold = True
-                        run.font.size = Pt(8.5)
-                        run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
+                    _set_cell_shading(cell, "E8E8E8")
+                    p_cell = cell.paragraphs[0]
+                    p_cell.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    _add_formatted_runs(p_cell, h, font_size=Pt(9.5), base_bold=True)
                 for i, row in enumerate(t["rows"]):
                     for j, val in enumerate(row):
                         cell = tbl.rows[i + 1].cells[j]
-                        cell.text = str(val)
-                        for run in cell.paragraphs[0].runs:
-                            run.font.size = Pt(8.5)
+                        p_cell = cell.paragraphs[0]
+                        p_cell.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                        _add_formatted_runs(p_cell, str(val), font_size=Pt(9.5))
             elif "fig" in blk:
                 f = blk["fig"]
                 p_img = doc.add_paragraph()
                 p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                p_img.add_run().add_picture(str(f["path"]), width=Inches(6.2))
+                p_img.paragraph_format.space_before = Pt(6)
+                p_img.add_run().add_picture(str(f["path"]), width=Inches(6.0))
                 p_cap = doc.add_paragraph()
                 p_cap.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                rc = p_cap.add_run(f["caption"])
-                rc.italic = True
-                rc.font.size = Pt(9.5)
+                p_cap.paragraph_format.space_after = Pt(8)
+                _add_formatted_runs(p_cap, f"**{f['label']}** {f['caption']}", font_size=Pt(11))
 
     doc.save(out_path)
 
