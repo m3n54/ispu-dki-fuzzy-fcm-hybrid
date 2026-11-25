@@ -593,7 +593,11 @@ def render_markdown(sections: list[dict]) -> str:
             rel_logo = Path(sec["logo_path"]).relative_to(ROOT).as_posix()
             parts.append(f"![Logo Universitas Diponegoro](../{rel_logo})\n")
             parts.append("Disusun oleh:\n")
-            parts.append(md_table(["Nama", "NIM"], [[n, nim] for n, nim in sec["members"]]))
+            if len(sec["members"]) == 1:
+                nama, nim = sec["members"][0]
+                parts.append(f"**Nama**\n{nama}\n\n**NIM**\n{nim}\n")
+            else:
+                parts.append(md_table(["Nama", "NIM"], [[n, nim] for n, nim in sec["members"]]))
             parts.append("\n" + "\n".join(f"**{ln}**" for ln in sec["institution_lines"]) + "\n\n---\n")
         else:
             parts.append(f"\n# {sec['heading']}\n")
@@ -626,10 +630,25 @@ def render_html(sections: list[dict]) -> str:
         if sec["type"] == "cover":
             logo_uri = Path(sec["logo_path"]).resolve().as_uri()
             top_html = "".join(f'<p class="cover-top">{inline_to_html(ln)}</p>' for ln in sec["top_lines"])
-            member_rows = "".join(
-                f"<tr><td>{html.escape(n)}</td><td class='nim-col'>{html.escape(nim)}</td></tr>"
-                for n, nim in sec["members"]
-            )
+            if len(sec["members"]) == 1:
+                nama, nim = sec["members"][0]
+                author_block = (
+                    f'<p class="cover-by" style="margin-top:8px; margin-bottom:2px;"><strong>Nama</strong></p>'
+                    f'<p class="cover-by" style="margin-top:0; margin-bottom:10px;">{html.escape(nama)}</p>'
+                    f'<p class="cover-by" style="margin-top:0; margin-bottom:2px;"><strong>NIM</strong></p>'
+                    f'<p class="cover-by" style="margin-top:0;">{html.escape(nim)}</p>'
+                )
+            else:
+                member_rows = "".join(
+                    f"<tr><td>{html.escape(n)}</td><td class='nim-col'>{html.escape(nim)}</td></tr>"
+                    for n, nim in sec["members"]
+                )
+                author_block = (
+                    f'<table class="cover-table">'
+                    f'<thead><tr><th>Nama</th><th class="nim-col">NIM</th></tr></thead>'
+                    f'<tbody>{member_rows}</tbody>'
+                    f'</table>'
+                )
             inst_html = "".join(f'<p class="cover-inst">{html.escape(ln)}</p>' for ln in sec["institution_lines"])
             body.append(
                 f"""
@@ -643,10 +662,7 @@ def render_html(sections: list[dict]) -> str:
                     </div>
                     <div class="cover-author-wrap">
                         <p class="cover-by">Disusun oleh:</p>
-                        <table class="cover-table">
-                            <thead><tr><th>Nama</th><th class="nim-col">NIM</th></tr></thead>
-                            <tbody>{member_rows}</tbody>
-                        </table>
+                        {author_block}
                     </div>
                     <div class="cover-inst-wrap">
                         {inst_html}
@@ -808,30 +824,42 @@ def render_docx(sections: list[dict], out_path: Path) -> None:
 
             p_by = doc.add_paragraph()
             p_by.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_by.paragraph_format.space_after = Pt(6)
+            p_by.paragraph_format.space_after = Pt(10)
             _add_formatted_runs(p_by, "Disusun oleh:", font_size=Pt(12))
 
-            tbl = doc.add_table(rows=len(sec["members"]) + 1, cols=2)
-            tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-            _clear_table_borders(tbl)
-            hdr_left, hdr_right = tbl.rows[0].cells[0], tbl.rows[0].cells[1]
-            hdr_left.width, hdr_right.width = Inches(3.2), Inches(1.7)
-            p_hl = hdr_left.paragraphs[0]
-            p_hl.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            _add_formatted_runs(p_hl, "Nama", font_size=Pt(12), base_bold=True)
-            p_hr = hdr_right.paragraphs[0]
-            p_hr.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            _add_formatted_runs(p_hr, "NIM", font_size=Pt(12), base_bold=True)
+            if len(sec["members"]) == 1:
+                nama, nim = sec["members"][0]
+                for lbl, val, sp_after in [("Nama", nama, Pt(8)), ("NIM", nim, Pt(4))]:
+                    p_lbl = doc.add_paragraph()
+                    p_lbl.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p_lbl.paragraph_format.space_after = Pt(2)
+                    _add_formatted_runs(p_lbl, lbl, font_size=Pt(12), base_bold=True)
+                    p_val = doc.add_paragraph()
+                    p_val.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                    p_val.paragraph_format.space_after = sp_after
+                    _add_formatted_runs(p_val, val, font_size=Pt(12))
+            else:
+                tbl = doc.add_table(rows=len(sec["members"]) + 1, cols=2)
+                tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
+                _clear_table_borders(tbl)
+                hdr_left, hdr_right = tbl.rows[0].cells[0], tbl.rows[0].cells[1]
+                hdr_left.width, hdr_right.width = Inches(3.2), Inches(1.7)
+                p_hl = hdr_left.paragraphs[0]
+                p_hl.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                _add_formatted_runs(p_hl, "Nama", font_size=Pt(12), base_bold=True)
+                p_hr = hdr_right.paragraphs[0]
+                p_hr.alignment = WD_ALIGN_PARAGRAPH.CENTER
+                _add_formatted_runs(p_hr, "NIM", font_size=Pt(12), base_bold=True)
 
-            for idx, (nama, nim) in enumerate(sec["members"], start=1):
-                c0, c1 = tbl.rows[idx].cells[0], tbl.rows[idx].cells[1]
-                c0.width, c1.width = Inches(3.2), Inches(1.7)
-                p0 = c0.paragraphs[0]
-                p0.alignment = WD_ALIGN_PARAGRAPH.LEFT
-                _add_formatted_runs(p0, nama, font_size=Pt(12))
-                p1 = c1.paragraphs[0]
-                p1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-                _add_formatted_runs(p1, nim, font_size=Pt(12))
+                for idx, (nama, nim) in enumerate(sec["members"], start=1):
+                    c0, c1 = tbl.rows[idx].cells[0], tbl.rows[idx].cells[1]
+                    c0.width, c1.width = Inches(3.2), Inches(1.7)
+                    p0 = c0.paragraphs[0]
+                    p0.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                    _add_formatted_runs(p0, nama, font_size=Pt(12))
+                    p1 = c1.paragraphs[0]
+                    p1.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+                    _add_formatted_runs(p1, nim, font_size=Pt(12))
 
             p_sp = doc.add_paragraph()
             p_sp.paragraph_format.space_before = Pt(36)

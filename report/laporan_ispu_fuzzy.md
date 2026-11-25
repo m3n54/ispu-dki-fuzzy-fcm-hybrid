@@ -8,9 +8,12 @@
 
 Disusun oleh:
 
-| Nama | NIM |
-| --- | --- |
-| Menza Isaiah Tampubolon | 24060124140138 |
+**Nama**
+Menza Isaiah Tampubolon
+
+**NIM**
+24060124140138
+
 
 **DEPARTEMEN ILMU KOMPUTER / INFORMATIKA**
 **FAKULTAS SAINS DAN MATEMATIKA**
